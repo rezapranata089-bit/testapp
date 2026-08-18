@@ -996,8 +996,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     final progress = widget.appState.completedToday ? 1.0 : 0.0;
 
     final content = Container(
-      // Padding bawah dilebarkan lagi agar memiliki ruang lebih untuk efek fade out yang panjang
-      padding: const EdgeInsets.fromLTRB(20, 56, 20, 78),
+      padding: const EdgeInsets.fromLTRB(20, 76, 20, 42),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1108,83 +1107,83 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
       ),
     );
 
-    return ShaderMask(
-      shaderCallback: (bounds) {
-        return const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.transparent,
-            Colors.black,
-            Colors.black,
-            Colors.transparent,
-          ],
-          stops: [0.0, 0.15, 0.65, 1.0], // Area fade bawah diperpanjang (35%) agar gradasi sangat mulus
-        ).createShader(bounds);
-      },
-      blendMode: BlendMode.dstIn,
-      child: Container(
-        // Tanpa bayangan (shadow) agar tidak ada cahaya bocor yang merusak fade
-        decoration: const BoxDecoration(
-          color: Colors.transparent,
-        ),
-        child: Stack(
-          children: [
-            if (wavesProgram != null)
-              Positioned.fill(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    final size = Size(constraints.maxWidth, constraints.maxHeight);
-                    final primary = theme.colorScheme.primary;
-                    
-                    final baseColor = Color.lerp(primary, Colors.black, 0.3) ?? Colors.black;
-                    final deepWave = Color.lerp(primary, Colors.black, 0.7) ?? Colors.black;
-                    final brightCrest = Color.lerp(primary, Colors.white, 0.15) ?? primary;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: ShaderMask(
+            shaderCallback: (bounds) {
+              return const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.transparent,
+                  Colors.black,
+                  Colors.black,
+                  Colors.transparent,
+                ],
+                stops: [0.0, 0.15, 0.65, 1.0],
+              ).createShader(bounds);
+            },
+            blendMode: BlendMode.dstIn,
+            child: Stack(
+              children: [
+                if (wavesProgram != null)
+                  Positioned.fill(
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final size = Size(constraints.maxWidth, constraints.maxHeight);
+                        final primary = theme.colorScheme.primary;
+                        
+                        final baseColor = Color.lerp(primary, Colors.black, 0.3) ?? Colors.black;
+                        final deepWave = Color.lerp(primary, Colors.black, 0.7) ?? Colors.black;
+                        final brightCrest = Color.lerp(primary, Colors.white, 0.15) ?? primary;
 
-                    return RepaintBoundary(
-                      child: ValueListenableBuilder<double>(
-                        valueListenable: _time,
-                        builder: (context, timeValue, _) {
-                          return CustomPaint(
-                            isComplex: true,
-                            willChange: true,
-                            painter: WavePainter(
-                              wavesProgram!.fragmentShader(),
-                              timeValue,
-                              size,
-                              baseColor,
-                              deepWave,
-                              brightCrest,
-                            ),
-                          );
-                        },
+                        return RepaintBoundary(
+                          child: ValueListenableBuilder<double>(
+                            valueListenable: _time,
+                            builder: (context, timeValue, _) {
+                              return CustomPaint(
+                                isComplex: true,
+                                willChange: true,
+                                painter: WavePainter(
+                                  wavesProgram!.fragmentShader(),
+                                  timeValue,
+                                  size,
+                                  baseColor,
+                                  deepWave,
+                                  brightCrest,
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  )
+                else
+                  Positioned.fill(
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Color.lerp(theme.colorScheme.primary, Colors.black, 0.2)!,
+                            Color.lerp(theme.colorScheme.primary, Colors.black, 0.6)!,
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
                       ),
-                    );
-                  },
-                ),
-              )
-            else
-              Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [
-                        Color.lerp(theme.colorScheme.primary, Colors.black, 0.2)!,
-                        Color.lerp(theme.colorScheme.primary, Colors.black, 0.6)!,
-                      ],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
                     ),
                   ),
+                Positioned.fill(
+                  child: Container(color: Colors.black.withOpacity(0.2)),
                 ),
-              ),
-            Positioned.fill(
-              child: Container(color: Colors.black.withOpacity(0.2)),
+              ],
             ),
-            content,
-          ],
+          ),
         ),
-      ),
+        content,
+      ],
     );
   }
 }
