@@ -689,8 +689,14 @@ class HomePage extends StatelessWidget {
     final nextSchedule =
         activeSchedules.isEmpty ? null : activeSchedules.first;
     return SafeArea(
+      top: false,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          MediaQuery.of(context).padding.top + 24,
+          20,
+          32,
+        ),
         children: [
           Row(
             children: [
