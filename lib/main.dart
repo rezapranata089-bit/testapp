@@ -1,12 +1,23 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+ui.FragmentProgram? wavesProgram;
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  try {
+    wavesProgram = await ui.FragmentProgram.fromAsset('shaders/waves.frag');
+    debugPrint('BERHASIL: Shader GradientWaves berhasil dimuat!');
+  } catch (e) {
+    debugPrint('Gagal memuat shader: $e');
+  }
 
   // Memaksa mesin Flutter memuat font Satoshi secara dinamis di runtime.
   try {
@@ -809,35 +820,58 @@ class HomePage extends StatelessWidget {
   }
 }
 
-class _TodayWorkoutCard extends StatelessWidget {
+class _TodayWorkoutCard extends StatefulWidget {
   const _TodayWorkoutCard({required this.appState});
 
   final WorkoutAppState appState;
 
   @override
+  State<_TodayWorkoutCard> createState() => _TodayWorkoutCardState();
+}
+
+class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
+    with SingleTickerProviderStateMixin {
+  late Ticker _ticker;
+  double _time = 0.0;
+  Offset _mouse = const Offset(0.5, 0.5);
+  Offset _targetMouse = const Offset(0.5, 0.5);
+
+  @override
+  void initState() {
+    super.initState();
+    _ticker = createTicker((elapsed) {
+      if (!mounted) return;
+      setState(() {
+        _time = elapsed.inMicroseconds / 1000000.0;
+        _mouse += (_targetMouse - _mouse) * 0.05;
+      });
+    })..start();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    super.dispose();
+  }
+
+  void _onPanUpdate(DragUpdateDetails details, Size size) {
+    _targetMouse = Offset(
+      (details.localPosition.dx / size.width).clamp(0.0, 1.0),
+      1.0 - (details.localPosition.dy / size.height).clamp(0.0, 1.0),
+    );
+  }
+
+  void _onPanEnd(DragEndDetails details) {
+    _targetMouse = const Offset(0.5, 0.5);
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final progress = appState.completedToday ? 1.0 : 0.0;
-    return Container(
+    final progress = widget.appState.completedToday ? 1.0 : 0.0;
+
+    final content = Container(
       padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            theme.colorScheme.primary,
-            Color.lerp(theme.colorScheme.primary, Colors.black, 0.28)!,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -845,22 +879,25 @@ class _TodayWorkoutCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                   appState.completedToday
-                       ? 'LATIHAN SELESAI'
-                       : 'LATIHAN HARI INI',
+                  widget.appState.completedToday
+                      ? 'LATIHAN SELESAI'
+                      : 'LATIHAN HARI INI',
                   style: theme.textTheme.labelMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.76),
+                    color: Colors.white.withOpacity(0.9),
                     fontWeight: FontWeight.w800,
                     letterSpacing: 1.2,
+                    shadows: [
+                      const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+                    ],
                   ),
                 ),
               ),
               Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.16),
+                  color: Colors.white.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.white.withOpacity(0.3)),
                 ),
                 child: const Text(
                   'PEMULA',
@@ -881,13 +918,19 @@ class _TodayWorkoutCard extends StatelessWidget {
               color: Colors.white,
               fontWeight: FontWeight.w900,
               letterSpacing: -0.8,
+              shadows: [
+                const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+              ],
             ),
           ),
           const SizedBox(height: 6),
           Text(
             workoutOfTheDay.description,
             style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(0.78),
+              color: Colors.white.withOpacity(0.9),
+              shadows: [
+                const Shadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))
+              ],
             ),
           ),
           const SizedBox(height: 20),
@@ -907,11 +950,14 @@ class _TodayWorkoutCard extends StatelessWidget {
           const SizedBox(height: 20),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 7,
-              backgroundColor: Colors.white.withOpacity(0.18),
-              valueColor: const AlwaysStoppedAnimation(Colors.white),
+            child: BackdropFilter(
+              filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              child: LinearProgressIndicator(
+                value: progress,
+                minHeight: 7,
+                backgroundColor: Colors.white.withOpacity(0.2),
+                valueColor: const AlwaysStoppedAnimation(Colors.white),
+              ),
             ),
           ),
           const SizedBox(height: 16),
@@ -920,26 +966,147 @@ class _TodayWorkoutCard extends StatelessWidget {
             child: FilledButton(
               onPressed: () => Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (_) => WorkoutSessionPage(appState: appState),
+                  builder: (_) => WorkoutSessionPage(appState: widget.appState),
                 ),
               ),
               style: FilledButton.styleFrom(
-                backgroundColor: Colors.white,
+                backgroundColor: Colors.white.withOpacity(0.95),
                 foregroundColor: theme.colorScheme.primary,
                 padding: const EdgeInsets.symmetric(vertical: 16),
+                elevation: 0,
               ),
-               child: Text(
-                 appState.completedToday
-                     ? 'Ulangi Latihan'
-                     : 'Mulai Latihan',
-                 style: const TextStyle(fontWeight: FontWeight.w800),
-               ),
+              child: Text(
+                widget.appState.completedToday ? 'Ulangi Latihan' : 'Mulai Latihan',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
             ),
           ),
         ],
       ),
     );
+
+    return Container(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(28),
+        boxShadow: [
+          BoxShadow(
+            color: theme.colorScheme.primary.withOpacity(0.22),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: Stack(
+          children: [
+            if (wavesProgram != null)
+              Positioned.fill(
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final size = Size(constraints.maxWidth, constraints.maxHeight);
+                    return GestureDetector(
+                      onPanUpdate: (d) => _onPanUpdate(d, size),
+                      onPanEnd: _onPanEnd,
+                      child: CustomPaint(
+                        painter: WavePainter(
+                          wavesProgram!.fragmentShader(),
+                          _time,
+                          size,
+                          _mouse,
+                          theme.colorScheme.primary,
+                          Color.lerp(theme.colorScheme.primary, Colors.white, 0.5) ?? Colors.white,
+                          Colors.white,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              )
+            else
+              Positioned.fill(
+                child: Container(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        theme.colorScheme.primary,
+                        Color.lerp(theme.colorScheme.primary, Colors.black, 0.28)!,
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                ),
+              ),
+            // Glassmorphism overlay for text readability
+            Positioned.fill(
+              child: BackdropFilter(
+                filter: ui.ImageFilter.blur(sigmaX: 1, sigmaY: 1),
+                child: Container(color: Colors.black.withOpacity(0.12)),
+              ),
+            ),
+            content,
+          ],
+        ),
+      ),
+    );
   }
+}
+
+class WavePainter extends CustomPainter {
+  final ui.FragmentShader shader;
+  final double time;
+  final Size resolution;
+  final Offset mouse;
+  final Color horizonColor;
+  final Color waveColor;
+  final Color crestColor;
+
+  WavePainter(this.shader, this.time, this.resolution, this.mouse, this.horizonColor, this.waveColor, this.crestColor);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    shader.setFloat(0, size.width);
+    shader.setFloat(1, size.height);
+    shader.setFloat(2, time);
+    shader.setFloat(3, 0.4); // speed
+    shader.setFloat(4, 2.5); // amplitude
+    shader.setFloat(5, 0.6); // waveScale
+    shader.setFloat(6, 0.9); // waveRatio
+    shader.setFloat(7, 35.0); // swell
+    shader.setFloat(8, 20.0); // turbulence
+    shader.setFloat(9, 1.11); // tilt
+    shader.setFloat(10, 1.0); // zoom
+    shader.setFloat(11, 5.5); // height
+    shader.setFloat(12, 15.0); // fogDepth
+    shader.setFloat(13, 70.0); // steps (medium detail)
+    shader.setFloat(14, 1.0); // brightness
+    shader.setFloat(15, 1.0); // opacity
+    shader.setFloat(16, 1.0); // grain on
+    shader.setFloat(17, 0.05); // grainIntensity
+    shader.setFloat(18, mouse.dx);
+    shader.setFloat(19, mouse.dy);
+    shader.setFloat(20, 0.5); // parallax
+    shader.setFloat(21, 1.0); // enableMouse
+    
+    shader.setFloat(22, horizonColor.red / 255.0);
+    shader.setFloat(23, horizonColor.green / 255.0);
+    shader.setFloat(24, horizonColor.blue / 255.0);
+    
+    shader.setFloat(25, waveColor.red / 255.0);
+    shader.setFloat(26, waveColor.green / 255.0);
+    shader.setFloat(27, waveColor.blue / 255.0);
+    
+    shader.setFloat(28, crestColor.red / 255.0);
+    shader.setFloat(29, crestColor.green / 255.0);
+    shader.setFloat(30, crestColor.blue / 255.0);
+
+    final paint = Paint()..shader = shader;
+    canvas.drawRect(Offset.zero & size, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant WavePainter oldDelegate) => true;
 }
 
 class _WhiteMeta extends StatelessWidget {

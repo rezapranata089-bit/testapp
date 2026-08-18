@@ -4,5 +4,11 @@
     "block": 1,
     "layer": "not_found_in_project",
     "file": "pubspec.yaml"
+  },
+  {
+    "timestamp": "2026-08-18 18:07:05",
+    "block": 1,
+    "layer": "auto_create_cancelled",
+    "file": "shaders/waves.frag"
   }
 ]

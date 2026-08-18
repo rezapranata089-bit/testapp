@@ -20,6 +20,9 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  shaders:
+    - shaders/waves.frag
+
   # Memaksa aset font disertakan ke dalam bundle output web
   assets:
     - assets/fonts/
