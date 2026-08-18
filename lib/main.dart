@@ -905,7 +905,7 @@ class HomePage extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 20),
             child: _AiPromptInput(),
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 16),
           _TodayWorkoutCard(appState: appState),
           const SizedBox(height: 48),
           Padding(
@@ -1078,7 +1078,9 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     final progress = widget.appState.completedToday ? 1.0 : 0.0;
 
     final content = Container(
-      padding: const EdgeInsets.fromLTRB(20, 96, 20, 42),
+      // Padding atas dikurangi agar tidak terlalu jauh dari form AI,
+      // Padding bawah diperbesar (96) agar area wave menjadi lebih tinggi.
+      padding: const EdgeInsets.fromLTRB(20, 48, 20, 96),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1203,7 +1205,9 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   Colors.black,
                   Colors.transparent,
                 ],
-                stops: [0.0, 0.15, 0.65, 1.0],
+                // Area fade atas diperkecil (0.05) agar visual wave lebih dekat ke form,
+                // Area fade bawah diperpanjang (0.75 - 1.0) untuk transisi super mulus.
+                stops: [0.0, 0.05, 0.75, 1.0],
               ).createShader(bounds);
             },
             blendMode: BlendMode.dstIn,
