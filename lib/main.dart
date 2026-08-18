@@ -907,7 +907,7 @@ class HomePage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _TodayWorkoutCard(appState: appState),
-          const SizedBox(height: 48),
+          const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -1205,9 +1205,9 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   Colors.black,
                   Colors.transparent,
                 ],
-                // Area fade atas diperkecil (0.05) agar visual wave lebih dekat ke form,
-                // Area fade bawah diperpanjang (0.75 - 1.0) untuk transisi super mulus.
-                stops: [0.0, 0.05, 0.75, 1.0],
+                // Area fade bawah ditarik jauh lebih awal (mulai dari titik tengah / 50%) 
+                // agar transisi menghilangnya background wave sangat mulus ke warna dasar.
+                stops: [0.0, 0.05, 0.5, 1.0],
               ).createShader(bounds);
             },
             blendMode: BlendMode.dstIn,
