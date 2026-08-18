@@ -658,28 +658,50 @@ class MainShell extends StatefulWidget {
 
 class _MainShellState extends State<MainShell> {
   int selectedIndex = 0;
+  late PageController _pageController;
 
   @override
   void initState() {
     super.initState();
     selectedIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: selectedIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _onItemTapped(int index) {
+    if (selectedIndex == index) return;
+    setState(() => selectedIndex = index);
+    _pageController.animateToPage(
+      index,
+      duration: const Duration(milliseconds: 350),
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final pages = [
-      HomePage(appState: widget.appState),
-      SchedulePage(appState: widget.appState),
-      ProgressPage(appState: widget.appState),
-      ProfilePage(appState: widget.appState),
+      _KeepAlivePage(child: HomePage(appState: widget.appState)),
+      _KeepAlivePage(child: SchedulePage(appState: widget.appState)),
+      _KeepAlivePage(child: ProgressPage(appState: widget.appState)),
+      _KeepAlivePage(child: ProfilePage(appState: widget.appState)),
     ];
     return Scaffold(
-      body: IndexedStack(index: selectedIndex, children: pages),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: (index) {
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
           setState(() => selectedIndex = index);
         },
+        children: pages,
+      ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: _onItemTapped,
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.home_outlined),
@@ -704,6 +726,27 @@ class _MainShellState extends State<MainShell> {
         ],
       ),
     );
+  }
+}
+
+class _KeepAlivePage extends StatefulWidget {
+  const _KeepAlivePage({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }
 
