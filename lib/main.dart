@@ -1088,6 +1088,21 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
           Stack(
             clipBehavior: Clip.none,
             children: [
+              // Lottie ditempatkan di urutan PERTAMA agar dirender di BELAKANG teks
+              Positioned(
+                right: -40, // Geser sedikit lebih ke kanan
+                bottom: -40, // Turunkan lagi ke bawah agar berdiri di atas progress bar
+                child: SizedBox(
+                  width: 300, // Perbesar sedikit agar lebih proporsional dari belakang
+                  height: 300,
+                  child: Lottie.asset(
+                    'assets/lottie/gym.json',
+                    fit: BoxFit.contain,
+                    alignment: Alignment.bottomRight, // Pastikan align ke kanan bawah
+                  ),
+                ),
+              ),
+              // Teks dirender di DEPAN animasi
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1171,19 +1186,6 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   ),
                   const SizedBox(height: 20),
                 ],
-              ),
-              Positioned(
-                right: -30,
-                bottom: -5,
-                child: SizedBox(
-                  width: 280,
-                  height: 280,
-                  child: Lottie.asset(
-                    'assets/lottie/gym.json',
-                    fit: BoxFit.contain,
-                    alignment: Alignment.bottomCenter,
-                  ),
-                ),
               ),
             ],
           ),
