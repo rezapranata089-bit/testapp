@@ -547,11 +547,9 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
       brightness: brightness,
         colorScheme: scheme,
         scaffoldBackgroundColor: scheme.surface,
-        // Catatan: Jika font belum berubah, pastikan konfigurasi pubspec.yaml 
-        // benar ('family: Satoshi') dan selalu lakukan FULL RESTART (Stop & Run).
-        fontFamily: 'Satoshi',
+        fontFamily: 'DMSerifDisplay',
         textTheme: ThemeData(brightness: brightness).textTheme.apply(
-              fontFamily: 'Satoshi',
+              fontFamily: 'DMSerifDisplay',
             ),
         appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,
