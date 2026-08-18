@@ -990,9 +990,11 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                     final size = Size(constraints.maxWidth, constraints.maxHeight);
                     final primary = theme.colorScheme.primary;
                     
-                    // Membuat kontras yang jauh lebih ekstrem agar gelombang terlihat jelas
-                    final deepWave = Color.lerp(primary, Colors.black, 0.65) ?? Colors.black;
-                    final brightCrest = Color.lerp(primary, Colors.white, 0.85) ?? Colors.white;
+                    // Gelapkan background card secara keseluruhan agar efek ombak
+                    // lebih terlihat dan teks putih di atasnya jauh lebih kontras.
+                    final baseColor = Color.lerp(primary, Colors.black, 0.3) ?? Colors.black;
+                    final deepWave = Color.lerp(primary, Colors.black, 0.7) ?? Colors.black;
+                    final brightCrest = Color.lerp(primary, Colors.white, 0.15) ?? primary;
 
                     // RepaintBoundary mengunci koordinat lokal shader dan sangat menaikkan FPS
                     return RepaintBoundary(
@@ -1001,7 +1003,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                           wavesProgram!.fragmentShader(),
                           _time,
                           size,
-                          primary,
+                          baseColor,
                           deepWave,
                           brightCrest,
                         ),
@@ -1016,8 +1018,8 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
-                        theme.colorScheme.primary,
-                        Color.lerp(theme.colorScheme.primary, Colors.black, 0.28)!,
+                        Color.lerp(theme.colorScheme.primary, Colors.black, 0.2)!,
+                        Color.lerp(theme.colorScheme.primary, Colors.black, 0.6)!,
                       ],
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
@@ -1027,7 +1029,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
               ),
             // Overlay transparan hitam tanpa blur agar tidak memberatkan device
             Positioned.fill(
-              child: Container(color: Colors.black.withOpacity(0.18)),
+              child: Container(color: Colors.black.withOpacity(0.2)),
             ),
             content,
           ],
