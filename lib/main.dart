@@ -832,22 +832,21 @@ class _TodayWorkoutCard extends StatefulWidget {
 class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     with SingleTickerProviderStateMixin {
   late Ticker _ticker;
-  double _time = 0.0;
+  final ValueNotifier<double> _time = ValueNotifier(0.0);
 
   @override
   void initState() {
     super.initState();
     _ticker = createTicker((elapsed) {
       if (!mounted) return;
-      setState(() {
-        _time = elapsed.inMicroseconds / 1000000.0;
-      });
+      _time.value = elapsed.inMicroseconds / 1000000.0;
     })..start();
   }
 
   @override
   void dispose() {
     _ticker.dispose();
+    _time.dispose();
     super.dispose();
   }
 
@@ -998,15 +997,20 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
 
                     // RepaintBoundary mengunci koordinat lokal shader dan sangat menaikkan FPS
                     return RepaintBoundary(
-                      child: CustomPaint(
-                        painter: WavePainter(
-                          wavesProgram!.fragmentShader(),
-                          _time,
-                          size,
-                          baseColor,
-                          deepWave,
-                          brightCrest,
-                        ),
+                      child: ValueListenableBuilder<double>(
+                        valueListenable: _time,
+                        builder: (context, timeValue, _) {
+                          return CustomPaint(
+                            painter: WavePainter(
+                              wavesProgram!.fragmentShader(),
+                              timeValue,
+                              size,
+                              baseColor,
+                              deepWave,
+                              brightCrest,
+                            ),
+                          );
+                        },
                       ),
                     );
                   },
@@ -1091,7 +1095,7 @@ class WavePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(covariant WavePainter oldDelegate) => true;
+  bool shouldRepaint(covariant WavePainter oldDelegate) => oldDelegate.time != time;
 }
 
 class _WhiteMeta extends StatelessWidget {
