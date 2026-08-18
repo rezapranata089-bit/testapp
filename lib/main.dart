@@ -1085,74 +1085,95 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Bagian teks difokuskan di sebelah kiri
               Expanded(
-                child: Text(
-                  widget.appState.completedToday
-                      ? 'LATIHAN SELESAI'
-                      : 'LATIHAN HARI INI',
-                  style: theme.textTheme.labelMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.2,
-                    shadows: [
-                      const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
-                    ],
-                  ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Wrap(
+                      crossAxisAlignment: WrapCrossAlignment.center,
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        Text(
+                          widget.appState.completedToday
+                              ? 'LATIHAN SELESAI'
+                              : 'LATIHAN HARI INI',
+                          style: theme.textTheme.labelMedium?.copyWith(
+                            color: Colors.white.withOpacity(0.9),
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 1.2,
+                            shadows: [
+                              const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.2),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.white.withOpacity(0.3)),
+                          ),
+                          child: const Text(
+                            'PEMULA',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w700,
+                              letterSpacing: 0.8,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+                    Text(
+                      workoutOfTheDay.title,
+                      style: theme.textTheme.headlineMedium?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.8,
+                        shadows: [
+                          const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      workoutOfTheDay.description,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withOpacity(0.9),
+                        shadows: [
+                          const Shadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 8,
+                      children: [
+                        _WhiteMeta(
+                          icon: Icons.timer_outlined,
+                          text: '${workoutOfTheDay.durationMinutes} menit',
+                        ),
+                        _WhiteMeta(
+                          icon: Icons.fitness_center_outlined,
+                          text: '${workoutOfTheDay.exercises.length} gerakan',
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.2),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withOpacity(0.3)),
-                ),
-                child: const Text(
-                  'PEMULA',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 18),
-          Text(
-            workoutOfTheDay.title,
-            style: theme.textTheme.headlineMedium?.copyWith(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.8,
-              shadows: [
-                const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
-              ],
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            workoutOfTheDay.description,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(0.9),
-              shadows: [
-                const Shadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-          Row(
-            children: [
-              _WhiteMeta(
-                icon: Icons.timer_outlined,
-                text: '${workoutOfTheDay.durationMinutes} menit',
               ),
               const SizedBox(width: 16),
-              _WhiteMeta(
-                icon: Icons.fitness_center_outlined,
-                text: '${workoutOfTheDay.exercises.length} gerakan',
+              // Ruang kosong di kanan untuk tempat animasi Lottie nantinya
+              const SizedBox(
+                width: 120, // Lebar area placeholder
+                height: 120, // Tinggi minimal area placeholder
               ),
             ],
           ),
@@ -1338,6 +1359,7 @@ class _WhiteMeta extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 16, color: Colors.white.withOpacity(0.8)),
         const SizedBox(width: 6),
