@@ -859,74 +859,75 @@ class HomePage extends StatelessWidget {
     return SafeArea(
       top: false,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          MediaQuery.of(context).padding.top + 32,
-          20,
-          40,
-        ),
+        padding: const EdgeInsets.only(bottom: 40),
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _greeting(),
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
+          Padding(
+            padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 32, 20, 0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _greeting(),
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Siap bergerak hari ini?',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.5,
+                      const SizedBox(height: 4),
+                      Text(
+                        'Siap bergerak hari ini?',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -0.5,
+                        ),
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              CircleAvatar(
-                radius: 24,
-                backgroundColor: theme.colorScheme.primaryContainer,
-                child: Text(
-                  _initials(appState.profile.name),
-                  style: TextStyle(
-                    color: theme.colorScheme.onPrimaryContainer,
-                    fontWeight: FontWeight.w800,
+                    ],
                   ),
                 ),
-              ),
-            ],
+                CircleAvatar(
+                  radius: 24,
+                  backgroundColor: theme.colorScheme.primaryContainer,
+                  child: Text(
+                    _initials(appState.profile.name),
+                    style: TextStyle(
+                      color: theme.colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 42),
           _TodayWorkoutCard(appState: appState),
           const SizedBox(height: 48),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Rangkaian hari ini',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontFamily: 'DMSerifDisplay',
-                  fontWeight: FontWeight.w400,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Rangkaian hari ini',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontFamily: 'DMSerifDisplay',
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-              ),
-              Text(
-                '${workoutOfTheDay.exercises.length} gerakan',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+                Text(
+                  '${workoutOfTheDay.exercises.length} gerakan',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
           const SizedBox(height: 12),
           ...workoutOfTheDay.exercises.asMap().entries.map(
                 (entry) => Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                   child: ExerciseListTile(
                     index: entry.key + 1,
                     exercise: entry.value,
@@ -934,14 +935,16 @@ class HomePage extends StatelessWidget {
                 ),
               ),
           const SizedBox(height: 14),
-          if (nextSchedule != null)
-            _NextScheduleCard(schedule: nextSchedule)
-          else
-            _EmptyInlineState(
-              icon: Icons.event_available_rounded,
-              title: 'Belum ada jadwal',
-              action: 'Buat jadwal di tab Jadwal',
-            ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: nextSchedule != null
+                ? _NextScheduleCard(schedule: nextSchedule)
+                : _EmptyInlineState(
+                    icon: Icons.event_available_rounded,
+                    title: 'Belum ada jadwal',
+                    action: 'Buat jadwal di tab Jadwal',
+                  ),
+          ),
         ],
       ),
     );
@@ -993,7 +996,8 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     final progress = widget.appState.completedToday ? 1.0 : 0.0;
 
     final content = Container(
-      padding: const EdgeInsets.all(22),
+      // Padding atas diperbesar agar teks tidak terpotong oleh fade-out gradasi
+      padding: const EdgeInsets.fromLTRB(20, 64, 20, 24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1104,19 +1108,27 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
       ),
     );
 
-    return Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(28),
-        boxShadow: [
-          BoxShadow(
-            color: theme.colorScheme.primary.withOpacity(0.22),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
+    return ShaderMask(
+      shaderCallback: (bounds) {
+        return const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.transparent, Colors.black],
+          stops: [0.0, 0.22], // 22% area atas akan memudar halus ke background
+        ).createShader(bounds);
+      },
+      blendMode: BlendMode.dstIn,
+      child: Container(
+        // Menghilangkan radius dan margin agar card full-bleed edge-to-edge
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: theme.colorScheme.primary.withOpacity(0.15),
+              blurRadius: 20,
+              offset: const Offset(0, 10),
+            ),
+          ],
+        ),
         child: Stack(
           children: [
             if (wavesProgram != null)
@@ -1126,20 +1138,17 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                     final size = Size(constraints.maxWidth, constraints.maxHeight);
                     final primary = theme.colorScheme.primary;
                     
-                    // Gelapkan background card secara keseluruhan agar efek ombak
-                    // lebih terlihat dan teks putih di atasnya jauh lebih kontras.
                     final baseColor = Color.lerp(primary, Colors.black, 0.3) ?? Colors.black;
                     final deepWave = Color.lerp(primary, Colors.black, 0.7) ?? Colors.black;
                     final brightCrest = Color.lerp(primary, Colors.white, 0.15) ?? primary;
 
-                    // RepaintBoundary mengunci koordinat lokal shader dan sangat menaikkan FPS
                     return RepaintBoundary(
                       child: ValueListenableBuilder<double>(
                         valueListenable: _time,
                         builder: (context, timeValue, _) {
                           return CustomPaint(
-                            isComplex: true, // Petunjuk GPU bahwa lukisan ini rumit
-                            willChange: true, // Petunjuk GPU bahwa frame ini berubah setiap detiknya
+                            isComplex: true,
+                            willChange: true,
                             painter: WavePainter(
                               wavesProgram!.fragmentShader(),
                               timeValue,
@@ -1170,7 +1179,6 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   ),
                 ),
               ),
-            // Overlay transparan hitam tanpa blur agar tidak memberatkan device
             Positioned.fill(
               child: Container(color: Colors.black.withOpacity(0.2)),
             ),
