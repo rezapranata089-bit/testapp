@@ -1722,7 +1722,7 @@ class _WeekStrip extends StatelessWidget {
   }
 }
 
-class _ScheduleTile extends StatelessWidget {
+class _ScheduleTile extends StatefulWidget {
   const _ScheduleTile({
     required this.schedule,
     required this.onToggle,
@@ -1736,21 +1736,77 @@ class _ScheduleTile extends StatelessWidget {
   final VoidCallback onDelete;
 
   @override
+  State<_ScheduleTile> createState() => _ScheduleTileState();
+}
+
+class _ScheduleTileState extends State<_ScheduleTile> {
+  double _swipeProgress = 0.0;
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    
+    // Intensitas dihitung agar mencapai warna solid merah sebelum tergeser penuh
+    final intensity = (_swipeProgress * 2.5).clamp(0.0, 1.0);
+    
+    // Efek warna pucat (errorContainer) membaur ke merah terang (error)
+    final bgColor = Color.lerp(
+      theme.colorScheme.errorContainer,
+      theme.colorScheme.error,
+      intensity,
+    ) ?? theme.colorScheme.error;
+
+    // Warna ikon menyesuaikan agar kontrasnya tetap terbaca
+    final iconColor = Color.lerp(
+      theme.colorScheme.onErrorContainer,
+      theme.colorScheme.onError,
+      intensity,
+    ) ?? theme.colorScheme.onError;
+
     return Card(
       clipBehavior: Clip.antiAlias,
       child: Dismissible(
-        key: ValueKey(schedule.id),
+        key: ValueKey(widget.schedule.id),
         direction: DismissDirection.endToStart,
-        onDismissed: (_) => onDelete(),
+        onUpdate: (details) {
+          if (_swipeProgress != details.progress) {
+            setState(() => _swipeProgress = details.progress);
+          }
+        },
+        confirmDismiss: (direction) async {
+          // Memberikan efek getaran saat threshold hapus tercapai
+          HapticFeedback.mediumImpact();
+          
+          return await showDialog<bool>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Hapus jadwal?'),
+              content: Text('Apakah kamu yakin ingin menghapus jadwal ${widget.schedule.workout} di hari ${widget.schedule.day}?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Batal'),
+                ),
+                FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: theme.colorScheme.error,
+                    foregroundColor: theme.colorScheme.onError,
+                  ),
+                  onPressed: () => Navigator.pop(context, true),
+                  child: const Text('Hapus'),
+                ),
+              ],
+            ),
+          );
+        },
+        onDismissed: (_) => widget.onDelete(),
         background: Container(
           alignment: Alignment.centerRight,
           padding: const EdgeInsets.only(right: 22),
-          color: theme.colorScheme.errorContainer,
+          color: bgColor,
           child: Icon(
             Icons.delete_outline_rounded,
-            color: theme.colorScheme.onErrorContainer,
+            color: iconColor,
           ),
         ),
         child: Material(
@@ -1758,24 +1814,24 @@ class _ScheduleTile extends StatelessWidget {
           child: ListTile(
             contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
             leading: CircleAvatar(
-              backgroundColor: schedule.active
+              backgroundColor: widget.schedule.active
                   ? theme.colorScheme.primaryContainer
                   : theme.colorScheme.surfaceContainerHighest,
               child: Icon(
                 Icons.fitness_center_rounded,
-                color: schedule.active
+                color: widget.schedule.active
                     ? theme.colorScheme.onPrimaryContainer
                     : theme.colorScheme.onSurfaceVariant,
                 size: 20,
               ),
             ),
             title: Text(
-              schedule.workout,
+              widget.schedule.workout,
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
             subtitle: Text(
-              '${schedule.day} • ${schedule.time}\n'
-              '${schedule.reminderEnabled ? 'Reminder ${schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
+              '${widget.schedule.day} • ${widget.schedule.time}\n'
+              '${widget.schedule.reminderEnabled ? 'Reminder ${widget.schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
             ),
             isThreeLine: true,
             trailing: Row(
@@ -1783,20 +1839,20 @@ class _ScheduleTile extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Switch(
-                  value: schedule.active,
-                  onChanged: (_) => onToggle(),
+                  value: widget.schedule.active,
+                  onChanged: (_) => widget.onToggle(),
                 ),
                 IconButton(
                   visualDensity: VisualDensity.compact,
-                  tooltip: schedule.reminderEnabled
+                  tooltip: widget.schedule.reminderEnabled
                       ? 'Matikan reminder'
                       : 'Nyalakan reminder',
-                  onPressed: onReminderToggle,
+                  onPressed: widget.onReminderToggle,
                   icon: Icon(
-                    schedule.reminderEnabled
+                    widget.schedule.reminderEnabled
                         ? Icons.notifications_active_rounded
                         : Icons.notifications_off_outlined,
-                    color: schedule.reminderEnabled
+                    color: widget.schedule.reminderEnabled
                         ? theme.colorScheme.primary
                         : theme.colorScheme.onSurfaceVariant,
                   ),
