@@ -1088,13 +1088,13 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
           Stack(
             clipBehavior: Clip.none,
             children: [
-              // Memaksa lebar Stack memenuhi layar agar `right: -25` merapat sempurna ke kanan
+              // Memaksa lebar Stack memenuhi layar agar posisi kanan bisa diandalkan
               const SizedBox(width: double.infinity, height: 0),
               
               // Lottie ditempatkan di urutan PERTAMA agar dirender di BELAKANG teks
               Positioned(
-                right: -25, // Merapat ke kanan
-                bottom: -15, // Dinaikkan sedikit agar tidak terlalu menabrak progress bar
+                right: -45, // Geser lebih ke kanan lagi
+                bottom: -24, // Turunkan sedikit lagi agar pas memijak progress bar
                 child: SizedBox(
                   width: 280, 
                   height: 280,
@@ -1109,42 +1109,18 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      Text(
-                        widget.appState.completedToday
-                            ? 'LATIHAN SELESAI'
-                            : 'LATIHAN HARI INI',
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: Colors.white.withOpacity(0.9),
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 1.2,
-                          shadows: [
-                            const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
-                          ],
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: Colors.white.withOpacity(0.3)),
-                        ),
-                        child: const Text(
-                          'PEMULA',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Text(
+                    widget.appState.completedToday
+                        ? 'LATIHAN SELESAI'
+                        : 'LATIHAN HARI INI',
+                    style: theme.textTheme.labelMedium?.copyWith(
+                      color: Colors.white.withOpacity(0.9),
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 1.2,
+                      shadows: [
+                        const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 18),
                   Text(
