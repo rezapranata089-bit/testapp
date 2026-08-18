@@ -724,9 +724,9 @@ class HomePage extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.fromLTRB(
           20,
-          MediaQuery.of(context).padding.top + 24,
+          MediaQuery.of(context).padding.top + 32,
           20,
-          32,
+          40,
         ),
         children: [
           Row(
@@ -765,9 +765,9 @@ class HomePage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 32),
+          const SizedBox(height: 42),
           _TodayWorkoutCard(appState: appState),
-          const SizedBox(height: 36),
+          const SizedBox(height: 48),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1278,9 +1278,9 @@ class SchedulePage extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.fromLTRB(
           20,
-          MediaQuery.of(context).padding.top + 24,
+          MediaQuery.of(context).padding.top + 32,
           20,
-          32,
+          40,
         ),
         children: [
           Text(
@@ -1297,9 +1297,9 @@ class SchedulePage extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 42),
           _WeekStrip(),
-          const SizedBox(height: 22),
+          const SizedBox(height: 42),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1709,9 +1709,9 @@ class ProgressPage extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.fromLTRB(
           20,
-          MediaQuery.of(context).padding.top + 24,
+          MediaQuery.of(context).padding.top + 32,
           20,
-          32,
+          40,
         ),
         children: [
           Text(
@@ -1728,7 +1728,7 @@ class ProgressPage extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 42),
           Row(
             children: [
               Expanded(
@@ -1772,7 +1772,7 @@ class ProgressPage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 26),
+          const SizedBox(height: 42),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1794,7 +1794,7 @@ class ProgressPage extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           _WeeklyActivityCard(appState: appState),
-          const SizedBox(height: 26),
+          const SizedBox(height: 42),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -2155,9 +2155,9 @@ class ProfilePage extends StatelessWidget {
       child: ListView(
         padding: EdgeInsets.fromLTRB(
           20,
-          MediaQuery.of(context).padding.top + 24,
+          MediaQuery.of(context).padding.top + 32,
           20,
-          32,
+          40,
         ),
         children: [
           Text(
@@ -2167,7 +2167,7 @@ class ProfilePage extends StatelessWidget {
               letterSpacing: -0.6,
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 42),
           Card(
             child: InkWell(
               borderRadius: BorderRadius.circular(24),
