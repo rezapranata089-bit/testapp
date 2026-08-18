@@ -11,6 +11,7 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.5.3
+  lottie: ^3.1.2
 
 dev_dependencies:
   flutter_test:
@@ -26,6 +27,7 @@ flutter:
   # Memaksa aset font disertakan ke dalam bundle output web
   assets:
     - assets/fonts/
+    - assets/lottie/
 
   fonts:
     - family: Satoshi

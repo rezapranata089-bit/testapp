@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:lottie/lottie.dart';
 
 ui.FragmentProgram? wavesProgram;
 
@@ -1170,10 +1171,14 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                 ),
               ),
               const SizedBox(width: 16),
-              // Ruang kosong di kanan untuk tempat animasi Lottie nantinya
-              const SizedBox(
-                width: 120, // Lebar area placeholder
-                height: 120, // Tinggi minimal area placeholder
+              // Animasi Lottie di sebelah kanan
+              SizedBox(
+                width: 120,
+                height: 120,
+                child: Lottie.asset(
+                  'assets/lottie/gym.json',
+                  fit: BoxFit.contain,
+                ),
               ),
             ],
           ),
