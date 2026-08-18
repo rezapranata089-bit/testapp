@@ -699,31 +699,106 @@ class _MainShellState extends State<MainShell> {
         },
         children: pages,
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: _SlidingNavigationBar(
         selectedIndex: selectedIndex,
         onDestinationSelected: _onItemTapped,
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home_rounded),
-            label: 'Home',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.calendar_month_outlined),
-            selectedIcon: Icon(Icons.calendar_month_rounded),
-            label: 'Jadwal',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.insights_outlined),
-            selectedIcon: Icon(Icons.insights_rounded),
-            label: 'Progress',
-          ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline_rounded),
-            selectedIcon: Icon(Icons.person_rounded),
-            label: 'Profil',
-          ),
-        ],
+      ),
+    );
+  }
+}
+
+class _SlidingNavigationBar extends StatelessWidget {
+  const _SlidingNavigationBar({
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+  });
+
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final items = [
+      (Icons.home_outlined, Icons.home_rounded, 'Home'),
+      (Icons.calendar_month_outlined, Icons.calendar_month_rounded, 'Jadwal'),
+      (Icons.insights_outlined, Icons.insights_rounded, 'Progress'),
+      (Icons.person_outline_rounded, Icons.person_rounded, 'Profil'),
+    ];
+
+    // Background default dari Material 3 Navigation Bar
+    final bgColor = theme.navigationBarTheme.backgroundColor ?? 
+                    theme.colorScheme.surfaceContainer;
+
+    return Container(
+      height: 80 + MediaQuery.of(context).padding.bottom,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
+      color: bgColor,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final itemWidth = constraints.maxWidth / items.length;
+          const indicatorWidth = 64.0;
+          const indicatorHeight = 32.0;
+
+          return Stack(
+            children: [
+              // Animasi geser (Pill Slider)
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOutCubic, // Curve yang sama dengan PageView
+                left: (selectedIndex * itemWidth) + (itemWidth - indicatorWidth) / 2,
+                top: 14,
+                child: Container(
+                  width: indicatorWidth,
+                  height: indicatorHeight,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.secondaryContainer,
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                ),
+              ),
+              // Ikon dan Label Text
+              Row(
+                children: items.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final isSelected = selectedIndex == index;
+                  final item = entry.value;
+
+                  return Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onDestinationSelected(index),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          SizedBox(
+                            height: 32,
+                            child: Icon(
+                              isSelected ? item.$2 : item.$1,
+                              color: isSelected
+                                  ? theme.colorScheme.onSecondaryContainer
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            item.$3,
+                            style: theme.textTheme.labelSmall?.copyWith(
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                              color: isSelected
+                                  ? theme.colorScheme.onSurface
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
