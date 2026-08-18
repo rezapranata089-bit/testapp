@@ -1739,125 +1739,168 @@ class _ScheduleTile extends StatefulWidget {
   State<_ScheduleTile> createState() => _ScheduleTileState();
 }
 
-class _ScheduleTileState extends State<_ScheduleTile> {
+class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderStateMixin {
   double _swipeProgress = 0.0;
+  late AnimationController _sizeController;
+  late Animation<double> _sizeAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _sizeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+      value: 1.0, // Mulai dengan ukuran penuh (100%)
+    );
+    _sizeAnimation = CurvedAnimation(
+      parent: _sizeController,
+      curve: Curves.easeInOutCubic,
+    );
+  }
+
+  @override
+  void dispose() {
+    _sizeController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _handleDeleteConfirmation(ThemeData theme) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Hapus jadwal?'),
+        content: Text('Apakah kamu yakin ingin menghapus jadwal ${widget.schedule.workout} di hari ${widget.schedule.day}?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: theme.colorScheme.error,
+              foregroundColor: theme.colorScheme.onError,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && mounted) {
+      // Jalankan animasi menyusut secara perlahan, setelah itu baru hapus data
+      await _sizeController.reverse();
+      if (mounted) widget.onDelete();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    // Intensitas dihitung agar mencapai warna solid merah sebelum tergeser penuh
-    final intensity = (_swipeProgress * 2.5).clamp(0.0, 1.0);
+    // Gradasi melambat: Merah pekat baru tercapai jika digeser lumayan jauh (50% layar)
+    final intensity = (_swipeProgress / 0.5).clamp(0.0, 1.0);
     
-    // Efek warna pucat (errorContainer) membaur ke merah terang (error)
+    // Efek warna pucat membaur ke merah terang
     final bgColor = Color.lerp(
       theme.colorScheme.errorContainer,
       theme.colorScheme.error,
       intensity,
     ) ?? theme.colorScheme.error;
 
-    // Warna ikon menyesuaikan agar kontrasnya tetap terbaca
+    // Warna ikon menyesuaikan agar kontras terbaca
     final iconColor = Color.lerp(
       theme.colorScheme.onErrorContainer,
       theme.colorScheme.onError,
       intensity,
     ) ?? theme.colorScheme.onError;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: Dismissible(
-        key: ValueKey(widget.schedule.id),
-        direction: DismissDirection.endToStart,
-        onUpdate: (details) {
-          if (_swipeProgress != details.progress) {
-            setState(() => _swipeProgress = details.progress);
-          }
-        },
-        confirmDismiss: (direction) async {
-          // Memberikan efek getaran saat threshold hapus tercapai
-          HapticFeedback.mediumImpact();
-          
-          return await showDialog<bool>(
-            context: context,
-            builder: (context) => AlertDialog(
-              title: const Text('Hapus jadwal?'),
-              content: Text('Apakah kamu yakin ingin menghapus jadwal ${widget.schedule.workout} di hari ${widget.schedule.day}?'),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Batal'),
-                ),
-                FilledButton(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: theme.colorScheme.error,
-                    foregroundColor: theme.colorScheme.onError,
-                  ),
-                  onPressed: () => Navigator.pop(context, true),
-                  child: const Text('Hapus'),
-                ),
-              ],
+    // Bungkus dengan SizeTransition agar bisa dianimasikan menyusut
+    return SizeTransition(
+      sizeFactor: _sizeAnimation,
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        child: Dismissible(
+          key: ValueKey(widget.schedule.id),
+          direction: DismissDirection.endToStart,
+          onUpdate: (details) {
+            if (_swipeProgress != details.progress && mounted) {
+              setState(() => _swipeProgress = details.progress);
+            }
+          },
+          confirmDismiss: (direction) async {
+            HapticFeedback.mediumImpact();
+            
+            // 1. Munculkan popup dialog tanpa memblokir baris berikutnya
+            _handleDeleteConfirmation(theme);
+            
+            // 2. Langsung kembalikan "false" ke sistem Dismissible,
+            // sehingga card otomatis bergeser kembali ke awal dengan animasi fluid.
+            return false;
+          },
+          onDismissed: (_) {
+            // onDismissed bawaan tidak akan pernah jalan karena kita return false.
+            // Penghapusan dialihkan sepenuhnya ke fungsi _handleDeleteConfirmation
+          },
+          background: Container(
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.only(right: 22),
+            color: bgColor,
+            child: Icon(
+              Icons.delete_outline_rounded,
+              color: iconColor,
             ),
-          );
-        },
-        onDismissed: (_) => widget.onDelete(),
-        background: Container(
-          alignment: Alignment.centerRight,
-          padding: const EdgeInsets.only(right: 22),
-          color: bgColor,
-          child: Icon(
-            Icons.delete_outline_rounded,
-            color: iconColor,
           ),
-        ),
-        child: Material(
-          color: theme.cardTheme.color ?? theme.colorScheme.surface,
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-            leading: CircleAvatar(
-              backgroundColor: widget.schedule.active
-                  ? theme.colorScheme.primaryContainer
-                  : theme.colorScheme.surfaceContainerHighest,
-              child: Icon(
-                Icons.fitness_center_rounded,
-                color: widget.schedule.active
-                    ? theme.colorScheme.onPrimaryContainer
-                    : theme.colorScheme.onSurfaceVariant,
-                size: 20,
+          child: Material(
+            color: theme.cardTheme.color ?? theme.colorScheme.surface,
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+              leading: CircleAvatar(
+                backgroundColor: widget.schedule.active
+                    ? theme.colorScheme.primaryContainer
+                    : theme.colorScheme.surfaceContainerHighest,
+                child: Icon(
+                  Icons.fitness_center_rounded,
+                  color: widget.schedule.active
+                      ? theme.colorScheme.onPrimaryContainer
+                      : theme.colorScheme.onSurfaceVariant,
+                  size: 20,
+                ),
               ),
-            ),
-            title: Text(
-              widget.schedule.workout,
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
-            subtitle: Text(
-              '${widget.schedule.day} • ${widget.schedule.time}\n'
-              '${widget.schedule.reminderEnabled ? 'Reminder ${widget.schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
-            ),
-            isThreeLine: true,
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Switch(
-                  value: widget.schedule.active,
-                  onChanged: (_) => widget.onToggle(),
-                ),
-                IconButton(
-                  visualDensity: VisualDensity.compact,
-                  tooltip: widget.schedule.reminderEnabled
-                      ? 'Matikan reminder'
-                      : 'Nyalakan reminder',
-                  onPressed: widget.onReminderToggle,
-                  icon: Icon(
-                    widget.schedule.reminderEnabled
-                        ? Icons.notifications_active_rounded
-                        : Icons.notifications_off_outlined,
-                    color: widget.schedule.reminderEnabled
-                        ? theme.colorScheme.primary
-                        : theme.colorScheme.onSurfaceVariant,
+              title: Text(
+                widget.schedule.workout,
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+              subtitle: Text(
+                '${widget.schedule.day} • ${widget.schedule.time}\n'
+                '${widget.schedule.reminderEnabled ? 'Reminder ${widget.schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
+              ),
+              isThreeLine: true,
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Switch(
+                    value: widget.schedule.active,
+                    onChanged: (_) => widget.onToggle(),
                   ),
-                ),
-              ],
+                  IconButton(
+                    visualDensity: VisualDensity.compact,
+                    tooltip: widget.schedule.reminderEnabled
+                        ? 'Matikan reminder'
+                        : 'Nyalakan reminder',
+                    onPressed: widget.onReminderToggle,
+                    icon: Icon(
+                      widget.schedule.reminderEnabled
+                          ? Icons.notifications_active_rounded
+                          : Icons.notifications_off_outlined,
+                      color: widget.schedule.reminderEnabled
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
