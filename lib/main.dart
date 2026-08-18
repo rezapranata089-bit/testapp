@@ -988,14 +988,17 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final size = Size(constraints.maxWidth, constraints.maxHeight);
-                    return CustomPaint(
-                      painter: WavePainter(
-                        wavesProgram!.fragmentShader(),
-                        _time,
-                        size,
-                        theme.colorScheme.primary,
-                        Color.lerp(theme.colorScheme.primary, Colors.white, 0.5) ?? Colors.white,
-                        Colors.white,
+                    // RepaintBoundary mengunci koordinat lokal shader dan sangat menaikkan FPS
+                    return RepaintBoundary(
+                      child: CustomPaint(
+                        painter: WavePainter(
+                          wavesProgram!.fragmentShader(),
+                          _time,
+                          size,
+                          theme.colorScheme.primary,
+                          Color.lerp(theme.colorScheme.primary, Colors.white, 0.5) ?? Colors.white,
+                          Colors.white,
+                        ),
                       ),
                     );
                   },
