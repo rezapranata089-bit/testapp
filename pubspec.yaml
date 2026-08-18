@@ -25,6 +25,6 @@ flutter:
     - assets/fonts/
 
   fonts:
-    - family: DMSerifDisplay
+    - family: Satoshi
       fonts:
-        - asset: assets/fonts/dm_serif_display_regular.ttf
+        - asset: assets/fonts/satoshi_regular.ttf

@@ -561,9 +561,9 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
       brightness: brightness,
         colorScheme: scheme,
     scaffoldBackgroundColor: scheme.surface,
-    fontFamily: 'DMSerifDisplay',
+    fontFamily: 'Satoshi',
     textTheme: ThemeData(brightness: brightness).textTheme.apply(
-          fontFamily: 'DMSerifDisplay',
+          fontFamily: 'Satoshi',
         ),
     appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,
