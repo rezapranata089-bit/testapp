@@ -11,7 +11,6 @@ void main() {
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
-      statusBarContrastEnforced: false,
       systemNavigationBarColor: Colors.transparent,
       systemNavigationBarContrastEnforced: false,
     ),
@@ -519,7 +518,6 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
                     isDark ? Brightness.light : Brightness.dark,
                 statusBarBrightness:
                     isDark ? Brightness.dark : Brightness.light,
-                statusBarContrastEnforced: false,
                 systemNavigationBarColor: Colors.transparent,
                 systemNavigationBarIconBrightness:
                     isDark ? Brightness.light : Brightness.dark,
