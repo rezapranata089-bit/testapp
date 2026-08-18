@@ -1138,6 +1138,8 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                         valueListenable: _time,
                         builder: (context, timeValue, _) {
                           return CustomPaint(
+                            isComplex: true, // Petunjuk GPU bahwa lukisan ini rumit
+                            willChange: true, // Petunjuk GPU bahwa frame ini berubah setiap detiknya
                             painter: WavePainter(
                               wavesProgram!.fragmentShader(),
                               timeValue,
