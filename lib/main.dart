@@ -833,8 +833,6 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     with SingleTickerProviderStateMixin {
   late Ticker _ticker;
   double _time = 0.0;
-  Offset _mouse = const Offset(0.5, 0.5);
-  Offset _targetMouse = const Offset(0.5, 0.5);
 
   @override
   void initState() {
@@ -843,7 +841,6 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
       if (!mounted) return;
       setState(() {
         _time = elapsed.inMicroseconds / 1000000.0;
-        _mouse += (_targetMouse - _mouse) * 0.05;
       });
     })..start();
   }
@@ -852,17 +849,6 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
   void dispose() {
     _ticker.dispose();
     super.dispose();
-  }
-
-  void _onPanUpdate(DragUpdateDetails details, Size size) {
-    _targetMouse = Offset(
-      (details.localPosition.dx / size.width).clamp(0.0, 1.0),
-      1.0 - (details.localPosition.dy / size.height).clamp(0.0, 1.0),
-    );
-  }
-
-  void _onPanEnd(DragEndDetails details) {
-    _targetMouse = const Offset(0.5, 0.5);
   }
 
   @override
@@ -950,14 +936,11 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
           const SizedBox(height: 20),
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: BackdropFilter(
-              filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-              child: LinearProgressIndicator(
-                value: progress,
-                minHeight: 7,
-                backgroundColor: Colors.white.withOpacity(0.2),
-                valueColor: const AlwaysStoppedAnimation(Colors.white),
-              ),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 7,
+              backgroundColor: Colors.white.withOpacity(0.25),
+              valueColor: const AlwaysStoppedAnimation(Colors.white),
             ),
           ),
           const SizedBox(height: 16),
@@ -1005,19 +988,14 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final size = Size(constraints.maxWidth, constraints.maxHeight);
-                    return GestureDetector(
-                      onPanUpdate: (d) => _onPanUpdate(d, size),
-                      onPanEnd: _onPanEnd,
-                      child: CustomPaint(
-                        painter: WavePainter(
-                          wavesProgram!.fragmentShader(),
-                          _time,
-                          size,
-                          _mouse,
-                          theme.colorScheme.primary,
-                          Color.lerp(theme.colorScheme.primary, Colors.white, 0.5) ?? Colors.white,
-                          Colors.white,
-                        ),
+                    return CustomPaint(
+                      painter: WavePainter(
+                        wavesProgram!.fragmentShader(),
+                        _time,
+                        size,
+                        theme.colorScheme.primary,
+                        Color.lerp(theme.colorScheme.primary, Colors.white, 0.5) ?? Colors.white,
+                        Colors.white,
                       ),
                     );
                   },
@@ -1038,12 +1016,9 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   ),
                 ),
               ),
-            // Glassmorphism overlay for text readability
+            // Overlay transparan hitam tanpa blur agar tidak memberatkan device
             Positioned.fill(
-              child: BackdropFilter(
-                filter: ui.ImageFilter.blur(sigmaX: 1, sigmaY: 1),
-                child: Container(color: Colors.black.withOpacity(0.12)),
-              ),
+              child: Container(color: Colors.black.withOpacity(0.18)),
             ),
             content,
           ],
@@ -1057,38 +1032,37 @@ class WavePainter extends CustomPainter {
   final ui.FragmentShader shader;
   final double time;
   final Size resolution;
-  final Offset mouse;
   final Color horizonColor;
   final Color waveColor;
   final Color crestColor;
 
-  WavePainter(this.shader, this.time, this.resolution, this.mouse, this.horizonColor, this.waveColor, this.crestColor);
+  WavePainter(this.shader, this.time, this.resolution, this.horizonColor, this.waveColor, this.crestColor);
 
   @override
   void paint(Canvas canvas, Size size) {
     shader.setFloat(0, size.width);
     shader.setFloat(1, size.height);
     shader.setFloat(2, time);
-    shader.setFloat(3, 0.4); // speed
-    shader.setFloat(4, 2.5); // amplitude
-    shader.setFloat(5, 0.6); // waveScale
-    shader.setFloat(6, 0.9); // waveRatio
-    shader.setFloat(7, 35.0); // swell
-    shader.setFloat(8, 20.0); // turbulence
-    shader.setFloat(9, 1.11); // tilt
-    shader.setFloat(10, 1.0); // zoom
-    shader.setFloat(11, 5.5); // height
-    shader.setFloat(12, 15.0); // fogDepth
-    shader.setFloat(13, 70.0); // steps (medium detail)
-    shader.setFloat(14, 1.0); // brightness
-    shader.setFloat(15, 1.0); // opacity
-    shader.setFloat(16, 1.0); // grain on
-    shader.setFloat(17, 0.05); // grainIntensity
-    shader.setFloat(18, mouse.dx);
-    shader.setFloat(19, mouse.dy);
-    shader.setFloat(20, 0.5); // parallax
-    shader.setFloat(21, 1.0); // enableMouse
-    
+    shader.setFloat(3, 0.4);
+    shader.setFloat(4, 2.5);
+    shader.setFloat(5, 0.6);
+    shader.setFloat(6, 0.9);
+    shader.setFloat(7, 35.0);
+    shader.setFloat(8, 20.0);
+    shader.setFloat(9, 1.11);
+    shader.setFloat(10, 1.0);
+    shader.setFloat(11, 5.5);
+    shader.setFloat(12, 15.0);
+    shader.setFloat(13, 70.0);
+    shader.setFloat(14, 1.0);
+    shader.setFloat(15, 1.0);
+    shader.setFloat(16, 1.0);
+    shader.setFloat(17, 0.05);
+    shader.setFloat(18, 0.5); // mouse.dx dibuat tetap
+    shader.setFloat(19, 0.5); // mouse.dy dibuat tetap
+    shader.setFloat(20, 0.0); // parallax dinonaktifkan
+    shader.setFloat(21, 0.0); // uEnableMouse dinonaktifkan
+
     shader.setFloat(22, horizonColor.red / 255.0);
     shader.setFloat(23, horizonColor.green / 255.0);
     shader.setFloat(24, horizonColor.blue / 255.0);
