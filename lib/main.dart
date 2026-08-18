@@ -1086,7 +1086,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // Bagian teks difokuskan di sebelah kiri
               Expanded(
@@ -1170,11 +1170,11 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   ],
                 ),
               ),
-              const SizedBox(width: 16),
-              // Animasi Lottie di sebelah kanan
+              const SizedBox(width: 4),
+              // Animasi Lottie di sebelah kanan (diperbesar)
               SizedBox(
-                width: 120,
-                height: 120,
+                width: 160,
+                height: 160,
                 child: Lottie.asset(
                   'assets/lottie/gym.json',
                   fit: BoxFit.contain,
