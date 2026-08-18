@@ -900,7 +900,12 @@ class HomePage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 42),
+          const SizedBox(height: 24),
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 20),
+            child: _AiPromptInput(),
+          ),
+          const SizedBox(height: 32),
           _TodayWorkoutCard(appState: appState),
           const SizedBox(height: 48),
           Padding(
@@ -960,6 +965,83 @@ class HomePage extends StatelessWidget {
   }
 }
 
+class _AiPromptInput extends StatelessWidget {
+  const _AiPromptInput();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF1B1D1A) : Colors.white,
+        borderRadius: BorderRadius.circular(32),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
+            blurRadius: 16,
+            offset: const Offset(0, 4),
+          ),
+        ],
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withOpacity(isDark ? 0.2 : 0.6),
+        ),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer.withOpacity(0.5),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.auto_awesome_rounded,
+              color: theme.colorScheme.primary,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: TextField(
+              decoration: InputDecoration(
+                hintText: 'Minta AI sesuaikan jadwal...',
+                hintStyle: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant.withOpacity(0.8),
+                ),
+                border: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                errorBorder: InputBorder.none,
+                disabledBorder: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 14),
+                filled: false,
+              ),
+              style: theme.textTheme.bodyMedium,
+            ),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary,
+              shape: BoxShape.circle,
+            ),
+            padding: const EdgeInsets.all(8),
+            child: Icon(
+              Icons.arrow_upward_rounded,
+              color: theme.colorScheme.onPrimary,
+              size: 20,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TodayWorkoutCard extends StatefulWidget {
   const _TodayWorkoutCard({required this.appState});
 
@@ -996,7 +1078,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     final progress = widget.appState.completedToday ? 1.0 : 0.0;
 
     final content = Container(
-      padding: const EdgeInsets.fromLTRB(20, 76, 20, 42),
+      padding: const EdgeInsets.fromLTRB(20, 140, 20, 42),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
