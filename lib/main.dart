@@ -1756,29 +1756,28 @@ class _ScheduleTile extends StatelessWidget {
         child: Material(
           color: theme.cardTheme.color ?? theme.colorScheme.surface,
           child: ListTile(
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-          leading: CircleAvatar(
-            backgroundColor: schedule.active
-                ? theme.colorScheme.primaryContainer
-                : theme.colorScheme.surfaceContainerHighest,
-            child: Icon(
-              Icons.fitness_center_rounded,
-              color: schedule.active
-                  ? theme.colorScheme.onPrimaryContainer
-                  : theme.colorScheme.onSurfaceVariant,
-              size: 20,
+            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+            leading: CircleAvatar(
+              backgroundColor: schedule.active
+                  ? theme.colorScheme.primaryContainer
+                  : theme.colorScheme.surfaceContainerHighest,
+              child: Icon(
+                Icons.fitness_center_rounded,
+                color: schedule.active
+                    ? theme.colorScheme.onPrimaryContainer
+                    : theme.colorScheme.onSurfaceVariant,
+                size: 20,
+              ),
             ),
-          ),
-          title: Text(
-            schedule.workout,
-            style: const TextStyle(fontWeight: FontWeight.w800),
-          ),
-           subtitle: Text(
-             '${schedule.day} • ${schedule.time}\n'
-             '${schedule.reminderEnabled ? 'Reminder ${schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
-           ),
-           isThreeLine: true,
+            title: Text(
+              schedule.workout,
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+            subtitle: Text(
+              '${schedule.day} • ${schedule.time}\n'
+              '${schedule.reminderEnabled ? 'Reminder ${schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
+            ),
+            isThreeLine: true,
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.center,
@@ -1804,6 +1803,7 @@ class _ScheduleTile extends StatelessWidget {
                 ),
               ],
             ),
+          ),
         ),
       ),
     );
