@@ -1088,17 +1088,20 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
           Stack(
             clipBehavior: Clip.none,
             children: [
+              // Memaksa lebar Stack memenuhi layar agar `right: -25` merapat sempurna ke kanan
+              const SizedBox(width: double.infinity, height: 0),
+              
               // Lottie ditempatkan di urutan PERTAMA agar dirender di BELAKANG teks
               Positioned(
-                right: -40, // Geser sedikit lebih ke kanan
-                bottom: -40, // Turunkan lagi ke bawah agar berdiri di atas progress bar
+                right: -25, // Merapat ke kanan
+                bottom: -15, // Dinaikkan sedikit agar tidak terlalu menabrak progress bar
                 child: SizedBox(
-                  width: 300, // Perbesar sedikit agar lebih proporsional dari belakang
-                  height: 300,
+                  width: 280, 
+                  height: 280,
                   child: Lottie.asset(
                     'assets/lottie/gym.json',
                     fit: BoxFit.contain,
-                    alignment: Alignment.bottomRight, // Pastikan align ke kanan bawah
+                    alignment: Alignment.bottomRight, 
                   ),
                 ),
               ),
