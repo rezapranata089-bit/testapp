@@ -65,7 +65,9 @@ void main() {
   vec2 fragCoord = FlutterFragCoord().xy;
   vec2 uv = (fragCoord.xy / iResolution.xy) - 0.5;
   uv.x *= iResolution.x / iResolution.y;
-  uv.y *= -1.0;
+  
+  // Perbedaan sistem koordinat WebGL (bawah-kiri) dan Flutter (atas-kiri)
+  // Menghapus uv.y *= -1.0; akan membuat horizon di atas dan gelombang di bawah.
 
   vec3 dir = vec3(0.0, 0.0, -1.0);
   float ulen = length(uv);
