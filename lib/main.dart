@@ -996,8 +996,8 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     final progress = widget.appState.completedToday ? 1.0 : 0.0;
 
     final content = Container(
-      // Padding atas & bawah diperbesar agar elemen UI tidak ikut memudar
-      padding: const EdgeInsets.fromLTRB(20, 56, 20, 56),
+      // Padding bawah dilebarkan lagi agar memiliki ruang lebih untuk efek fade out yang panjang
+      padding: const EdgeInsets.fromLTRB(20, 56, 20, 78),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1119,7 +1119,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
             Colors.black,
             Colors.transparent,
           ],
-          stops: [0.0, 0.15, 0.85, 1.0], // 15% area atas dan bawah memudar halus
+          stops: [0.0, 0.15, 0.65, 1.0], // Area fade bawah diperpanjang (35%) agar gradasi sangat mulus
         ).createShader(bounds);
       },
       blendMode: BlendMode.dstIn,
