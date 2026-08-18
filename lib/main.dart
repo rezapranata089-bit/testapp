@@ -996,8 +996,8 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                           _time,
                           size,
                           theme.colorScheme.primary,
-                          Color.lerp(theme.colorScheme.primary, Colors.white, 0.5) ?? Colors.white,
-                          Colors.white,
+                          Color.lerp(theme.colorScheme.primary, Colors.black, 0.25) ?? Colors.black,
+                          Color.lerp(theme.colorScheme.primary, Colors.white, 0.25) ?? Colors.white,
                         ),
                       ),
                     );
@@ -2221,14 +2221,14 @@ class ProfilePage extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 32),
           Text(
             'Tema aplikasi',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Card(
             child: Column(
               children: [
@@ -2253,14 +2253,14 @@ class ProfilePage extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 32),
           Text(
             'Warna aksen',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
             ),
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           Card(
             child: Padding(
               padding: const EdgeInsets.all(18),
@@ -2297,7 +2297,7 @@ class ProfilePage extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 32),
           Card(
             child: Column(
               children: [
