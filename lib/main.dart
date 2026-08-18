@@ -996,8 +996,8 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     final progress = widget.appState.completedToday ? 1.0 : 0.0;
 
     final content = Container(
-      // Padding atas diperbesar agar teks tidak terpotong oleh fade-out gradasi
-      padding: const EdgeInsets.fromLTRB(20, 64, 20, 24),
+      // Padding atas & bawah diperbesar agar elemen UI tidak ikut memudar
+      padding: const EdgeInsets.fromLTRB(20, 56, 20, 56),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1113,21 +1113,20 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
         return const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
-          colors: [Colors.transparent, Colors.black],
-          stops: [0.0, 0.22], // 22% area atas akan memudar halus ke background
+          colors: [
+            Colors.transparent,
+            Colors.black,
+            Colors.black,
+            Colors.transparent,
+          ],
+          stops: [0.0, 0.15, 0.85, 1.0], // 15% area atas dan bawah memudar halus
         ).createShader(bounds);
       },
       blendMode: BlendMode.dstIn,
       child: Container(
-        // Menghilangkan radius dan margin agar card full-bleed edge-to-edge
-        decoration: BoxDecoration(
-          boxShadow: [
-            BoxShadow(
-              color: theme.colorScheme.primary.withOpacity(0.15),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
+        // Tanpa bayangan (shadow) agar tidak ada cahaya bocor yang merusak fade
+        decoration: const BoxDecoration(
+          color: Colors.transparent,
         ),
         child: Stack(
           children: [
