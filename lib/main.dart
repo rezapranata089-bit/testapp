@@ -545,10 +545,15 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
-      colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surface,
-      fontFamily: 'Satoshi',
-      appBarTheme: AppBarTheme(
+        colorScheme: scheme,
+        scaffoldBackgroundColor: scheme.surface,
+        // Catatan: Jika font belum berubah, pastikan konfigurasi pubspec.yaml 
+        // benar ('family: Satoshi') dan selalu lakukan FULL RESTART (Stop & Run).
+        fontFamily: 'Satoshi',
+        textTheme: ThemeData(brightness: brightness).textTheme.apply(
+              fontFamily: 'Satoshi',
+            ),
+        appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
