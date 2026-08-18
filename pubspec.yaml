@@ -19,3 +19,30 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+  fonts:
+    - family: Satoshi
+      fonts:
+        - asset: assets/fonts/satoshi_light.otf
+          weight: 300
+        - asset: assets/fonts/satoshi_light_italic.otf
+          weight: 300
+          style: italic
+        - asset: assets/fonts/satoshi_regular.otf
+        - asset: assets/fonts/satoshi_italic.otf
+          style: italic
+        - asset: assets/fonts/satoshi_medium.otf
+          weight: 500
+        - asset: assets/fonts/satoshi_medium_italic.otf
+          weight: 500
+          style: italic
+        - asset: assets/fonts/satoshi_bold.otf
+          weight: 700
+        - asset: assets/fonts/satoshi_bold_italic.otf
+          weight: 700
+          style: italic
+        - asset: assets/fonts/satoshi_black.otf
+          weight: 900
+        - asset: assets/fonts/satoshi_black_italic.otf
+          weight: 900
+          style: italic
