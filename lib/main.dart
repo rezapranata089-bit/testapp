@@ -537,7 +537,10 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
                     isDark ? Brightness.light : Brightness.dark,
                 systemNavigationBarContrastEnforced: false,
               ),
-              child: child ?? const SizedBox.shrink(),
+              child: DefaultTextStyle.merge(
+                style: const TextStyle(fontFamily: 'Satoshi'),
+                child: child ?? const SizedBox.shrink(),
+              ),
             );
           },
           home: appState.isLoading
