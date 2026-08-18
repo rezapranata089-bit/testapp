@@ -763,7 +763,8 @@ class HomePage extends StatelessWidget {
               Text(
                 'Rangkaian hari ini',
                 style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontFamily: 'DMSerifDisplay',
+                  fontWeight: FontWeight.w400,
                 ),
               ),
               Text(
@@ -1161,7 +1162,8 @@ class SchedulePage extends StatelessWidget {
               Text(
                 'Jadwal mingguan',
                 style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontFamily: 'DMSerifDisplay',
+                  fontWeight: FontWeight.w400,
                 ),
               ),
               IconButton.filledTonal(
@@ -1484,30 +1486,31 @@ class _ScheduleTile extends StatelessWidget {
              '${schedule.reminderEnabled ? 'Reminder ${schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
            ),
            isThreeLine: true,
-           trailing: Column(
-             mainAxisAlignment: MainAxisAlignment.center,
-             children: [
-               Switch(
-                 value: schedule.active,
-                 onChanged: (_) => onToggle(),
-               ),
-               IconButton(
-                 visualDensity: VisualDensity.compact,
-                 tooltip: schedule.reminderEnabled
-                     ? 'Matikan reminder'
-                     : 'Nyalakan reminder',
-                 onPressed: onReminderToggle,
-                 icon: Icon(
-                   schedule.reminderEnabled
-                       ? Icons.notifications_active_rounded
-                       : Icons.notifications_off_outlined,
-                   color: schedule.reminderEnabled
-                       ? theme.colorScheme.primary
-                       : theme.colorScheme.onSurfaceVariant,
-                 ),
-               ),
-             ],
-           ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Switch(
+                  value: schedule.active,
+                  onChanged: (_) => onToggle(),
+                ),
+                IconButton(
+                  visualDensity: VisualDensity.compact,
+                  tooltip: schedule.reminderEnabled
+                      ? 'Matikan reminder'
+                      : 'Nyalakan reminder',
+                  onPressed: onReminderToggle,
+                  icon: Icon(
+                    schedule.reminderEnabled
+                        ? Icons.notifications_active_rounded
+                        : Icons.notifications_off_outlined,
+                    color: schedule.reminderEnabled
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
         ),
       ),
     );
@@ -1632,7 +1635,8 @@ class ProgressPage extends StatelessWidget {
               Text(
                 'Aktivitas minggu ini',
                 style: theme.textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.w800,
+                  fontFamily: 'DMSerifDisplay',
+                  fontWeight: FontWeight.w400,
                 ),
               ),
               Text(

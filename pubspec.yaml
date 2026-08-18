@@ -50,3 +50,6 @@ flutter:
         - asset: assets/fonts/satoshi_black_italic.otf
           weight: 900
           style: italic
+    - family: DMSerifDisplay
+      fonts:
+        - asset: assets/fonts/dm_serif_display_regular.ttf
