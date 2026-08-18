@@ -8,16 +8,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Memaksa mesin Flutter memuat font secara dinamis di runtime (bypass bug Web)
+  // Memaksa mesin Flutter memuat font Satoshi secara dinamis di runtime.
   try {
-    final fontLoader = FontLoader('DMSerifDisplay');
-    fontLoader.addFont(rootBundle.load('assets/fonts/dm_serif_display_regular.ttf'));
+    final fontLoader = FontLoader('Satoshi');
+    fontLoader.addFont(rootBundle.load('assets/fonts/satoshi_regular.otf'));
     await fontLoader.load();
-    debugPrint('BERHASIL: Font DM Serif Display berhasil dimuat secara manual!');
+    debugPrint('BERHASIL: Font Satoshi berhasil dimuat secara manual!');
   } catch (e) {
     debugPrint('\n=========== ERROR FONT ===========');
-    debugPrint('Gagal memuat font: $e');
-    debugPrint('Pastikan file dm_serif_display_regular.ttf benar-benar ada di folder assets/fonts/');
+    debugPrint('Gagal memuat font Satoshi: $e');
+    debugPrint('Pastikan file assets/fonts/satoshi_regular.otf benar-benar ada.');
     debugPrint('==================================\n');
   }
 
