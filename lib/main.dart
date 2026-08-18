@@ -765,9 +765,9 @@ class HomePage extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 32),
           _TodayWorkoutCard(appState: appState),
-          const SizedBox(height: 24),
+          const SizedBox(height: 36),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -870,7 +870,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                       : 'LATIHAN HARI INI',
                   style: theme.textTheme.labelMedium?.copyWith(
                     color: Colors.white.withOpacity(0.9),
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: 1.2,
                     shadows: [
                       const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
@@ -890,7 +890,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 10,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: 0.8,
                   ),
                 ),
@@ -902,7 +902,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
             workoutOfTheDay.title,
             style: theme.textTheme.headlineMedium?.copyWith(
               color: Colors.white,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w800,
               letterSpacing: -0.8,
               shadows: [
                 const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
@@ -960,7 +960,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
               ),
               child: Text(
                 widget.appState.completedToday ? 'Ulangi Latihan' : 'Mulai Latihan',
-                style: const TextStyle(fontWeight: FontWeight.w800),
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -1102,7 +1102,7 @@ class _WhiteMeta extends StatelessWidget {
           text,
           style: TextStyle(
             color: Colors.white.withOpacity(0.85),
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],
