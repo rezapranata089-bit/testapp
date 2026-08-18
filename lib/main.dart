@@ -908,7 +908,7 @@ class HomePage extends StatelessWidget {
           ),
           const SizedBox(height: 16),
           _TodayWorkoutCard(appState: appState),
-          const SizedBox(height: 12),
+          const SizedBox(height: 4), // Jarak diperkecil
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(
@@ -1080,8 +1080,8 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
 
     final content = Container(
       // Padding atas dikurangi agar tidak terlalu jauh dari form AI,
-      // Padding bawah diperbesar (96) agar area wave menjadi lebih tinggi.
-      padding: const EdgeInsets.fromLTRB(20, 48, 20, 96),
+      // Padding bawah dikurangi agar jarak ke seksi selanjutnya lebih dekat.
+      padding: const EdgeInsets.fromLTRB(20, 48, 20, 36),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
