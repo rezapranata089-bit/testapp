@@ -1078,7 +1078,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     final progress = widget.appState.completedToday ? 1.0 : 0.0;
 
     final content = Container(
-      padding: const EdgeInsets.fromLTRB(20, 48, 20, 42),
+      padding: const EdgeInsets.fromLTRB(20, 96, 20, 42),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
