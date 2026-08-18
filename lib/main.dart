@@ -1738,26 +1738,26 @@ class _ScheduleTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Dismissible(
-      key: ValueKey(schedule.id),
-      direction: DismissDirection.endToStart,
-      onDismissed: (_) => onDelete(),
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 22),
-        decoration: BoxDecoration(
+    return Card(
+      clipBehavior: Clip.antiAlias,
+      child: Dismissible(
+        key: ValueKey(schedule.id),
+        direction: DismissDirection.endToStart,
+        onDismissed: (_) => onDelete(),
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 22),
           color: theme.colorScheme.errorContainer,
-          borderRadius: BorderRadius.circular(22),
+          child: Icon(
+            Icons.delete_outline_rounded,
+            color: theme.colorScheme.onErrorContainer,
+          ),
         ),
-        child: Icon(
-          Icons.delete_outline_rounded,
-          color: theme.colorScheme.onErrorContainer,
-        ),
-      ),
-      child: Card(
-        child: ListTile(
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        child: Material(
+          color: theme.cardTheme.color ?? theme.colorScheme.surface,
+          child: ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
           leading: CircleAvatar(
             backgroundColor: schedule.active
                 ? theme.colorScheme.primaryContainer
