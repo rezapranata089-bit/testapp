@@ -988,6 +988,12 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                 child: LayoutBuilder(
                   builder: (context, constraints) {
                     final size = Size(constraints.maxWidth, constraints.maxHeight);
+                    final primary = theme.colorScheme.primary;
+                    
+                    // Membuat kontras yang jauh lebih ekstrem agar gelombang terlihat jelas
+                    final deepWave = Color.lerp(primary, Colors.black, 0.65) ?? Colors.black;
+                    final brightCrest = Color.lerp(primary, Colors.white, 0.85) ?? Colors.white;
+
                     // RepaintBoundary mengunci koordinat lokal shader dan sangat menaikkan FPS
                     return RepaintBoundary(
                       child: CustomPaint(
@@ -995,9 +1001,9 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                           wavesProgram!.fragmentShader(),
                           _time,
                           size,
-                          theme.colorScheme.primary,
-                          Color.lerp(theme.colorScheme.primary, Colors.black, 0.25) ?? Colors.black,
-                          Color.lerp(theme.colorScheme.primary, Colors.white, 0.25) ?? Colors.white,
+                          primary,
+                          deepWave,
+                          brightCrest,
                         ),
                       ),
                     );
