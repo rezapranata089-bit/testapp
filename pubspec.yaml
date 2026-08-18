@@ -20,6 +20,10 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+  # Memaksa aset font disertakan ke dalam bundle output web
+  assets:
+    - assets/fonts/
+
   fonts:
     - family: DMSerifDisplay
       fonts:

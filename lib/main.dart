@@ -5,8 +5,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Memaksa mesin Flutter memuat font secara dinamis di runtime (bypass bug Web)
+  try {
+    final fontLoader = FontLoader('DMSerifDisplay');
+    fontLoader.addFont(rootBundle.load('assets/fonts/dm_serif_display_regular.ttf'));
+    await fontLoader.load();
+    debugPrint('BERHASIL: Font DM Serif Display berhasil dimuat secara manual!');
+  } catch (e) {
+    debugPrint('\n=========== ERROR FONT ===========');
+    debugPrint('Gagal memuat font: $e');
+    debugPrint('Pastikan file dm_serif_display_regular.ttf benar-benar ada di folder assets/fonts/');
+    debugPrint('==================================\n');
+  }
+
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -546,12 +560,12 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
       useMaterial3: true,
       brightness: brightness,
         colorScheme: scheme,
-        scaffoldBackgroundColor: scheme.surface,
-        fontFamily: 'DMSerifDisplay',
-        textTheme: ThemeData(brightness: brightness).textTheme.apply(
-              fontFamily: 'DMSerifDisplay',
-            ),
-        appBarTheme: AppBarTheme(
+    scaffoldBackgroundColor: scheme.surface,
+    fontFamily: 'DMSerifDisplay',
+    textTheme: ThemeData(brightness: brightness).textTheme.apply(
+          fontFamily: 'DMSerifDisplay',
+        ),
+    appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
