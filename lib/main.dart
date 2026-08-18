@@ -659,6 +659,7 @@ class MainShell extends StatefulWidget {
 class _MainShellState extends State<MainShell> {
   int selectedIndex = 0;
   late PageController _pageController;
+  bool _isNavigating = false;
 
   @override
   void initState() {
@@ -673,14 +674,20 @@ class _MainShellState extends State<MainShell> {
     super.dispose();
   }
 
-  void _onItemTapped(int index) {
+  Future<void> _onItemTapped(int index) async {
     if (selectedIndex == index) return;
-    setState(() => selectedIndex = index);
-    _pageController.animateToPage(
+    setState(() {
+      selectedIndex = index;
+      _isNavigating = true; // Kunci onPageChanged sementara
+    });
+    await _pageController.animateToPage(
       index,
       duration: const Duration(milliseconds: 350),
       curve: Curves.easeOutCubic,
     );
+    if (mounted) {
+      setState(() => _isNavigating = false); // Buka kunci
+    }
   }
 
   @override
@@ -695,7 +702,10 @@ class _MainShellState extends State<MainShell> {
       body: PageView(
         controller: _pageController,
         onPageChanged: (index) {
-          setState(() => selectedIndex = index);
+          // Hanya ubah state jika pengguna yang menggeser manual (swipe)
+          if (!_isNavigating) {
+            setState(() => selectedIndex = index);
+          }
         },
         children: pages,
       ),
@@ -773,22 +783,31 @@ class _SlidingNavigationBar extends StatelessWidget {
                         children: [
                           SizedBox(
                             height: 32,
-                            child: Icon(
-                              isSelected ? item.$2 : item.$1,
-                              color: isSelected
-                                  ? theme.colorScheme.onSecondaryContainer
-                                  : theme.colorScheme.onSurfaceVariant,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 250),
+                              transitionBuilder: (child, animation) {
+                                return FadeTransition(opacity: animation, child: child);
+                              },
+                              child: Icon(
+                                isSelected ? item.$2 : item.$1,
+                                key: ValueKey(isSelected), // ValueKey penting agar Flutter tahu widget berubah
+                                color: isSelected
+                                    ? theme.colorScheme.onSecondaryContainer
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
                             ),
                           ),
                           const SizedBox(height: 4),
-                          Text(
-                            item.$3,
-                            style: theme.textTheme.labelSmall?.copyWith(
+                          AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 250),
+                            style: theme.textTheme.labelSmall!.copyWith(
                               fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
                               color: isSelected
                                   ? theme.colorScheme.onSurface
                                   : theme.colorScheme.onSurfaceVariant,
+                              fontFamily: 'Satoshi',
                             ),
+                            child: Text(item.$3),
                           ),
                         ],
                       ),
