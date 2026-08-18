@@ -1171,10 +1171,10 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                 ),
               ),
               const SizedBox(width: 4),
-              // Animasi Lottie di sebelah kanan (diperbesar)
+              // Animasi Lottie di sebelah kanan (diperbesar lagi)
               SizedBox(
-                width: 160,
-                height: 160,
+                width: 200,
+                height: 200,
                 child: Lottie.asset(
                   'assets/lottie/gym.json',
                   fit: BoxFit.contain,
