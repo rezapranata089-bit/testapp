@@ -2430,7 +2430,7 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
     _sizeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
-      value: 1.0, // Mulai dengan ukuran penuh (100%)
+      value: 1.0,
     );
     _sizeAnimation = CurvedAnimation(
       parent: _sizeController,
@@ -2468,7 +2468,6 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
     );
 
     if (confirmed == true && mounted) {
-      // Jalankan animasi menyusut secara perlahan, setelah itu baru hapus data
       await _sizeController.reverse();
       if (mounted) widget.onDelete();
     }
@@ -2489,14 +2488,13 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
           if (_swipeProgress > 0)
             Positioned.fill(
               child: Container(
-                // Margin kiri 20 agar menyamakan sisi kiri dengan card, sisi kanan bebas sampai pinggir layar
+                // Margin kiri 20 agar rata dengan card, sisi kanan bebas menyentuh tepi layar
                 margin: const EdgeInsets.only(left: 20, right: 0),
                 decoration: BoxDecoration(
                   color: bgColor,
                   borderRadius: const BorderRadius.horizontal(
                     left: Radius.circular(24),
-                    // Sisi kanan flat karena menempel pada tepi kanan layar
-                    right: Radius.circular(0),
+                    right: Radius.circular(0), // Siku di kanan karena menyentuh tepi layar
                   ),
                 ),
                 alignment: Alignment.centerRight,
@@ -2549,52 +2547,51 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
                   ),
                   child: Material(
                     color: theme.cardTheme.color ?? theme.colorScheme.surface,
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                        leading: CircleAvatar(
-                          backgroundColor: widget.schedule.active
-                              ? theme.colorScheme.primaryContainer
-                              : theme.colorScheme.surfaceContainerHighest,
-                          child: Icon(
-                            Icons.fitness_center_rounded,
-                            color: widget.schedule.active
-                                ? theme.colorScheme.onPrimaryContainer
-                                : theme.colorScheme.onSurfaceVariant,
-                            size: 20,
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                      leading: CircleAvatar(
+                        backgroundColor: widget.schedule.active
+                            ? theme.colorScheme.primaryContainer
+                            : theme.colorScheme.surfaceContainerHighest,
+                        child: Icon(
+                          Icons.fitness_center_rounded,
+                          color: widget.schedule.active
+                              ? theme.colorScheme.onPrimaryContainer
+                              : theme.colorScheme.onSurfaceVariant,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        widget.schedule.workout,
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      subtitle: Text(
+                        '${widget.schedule.day} • ${widget.schedule.time}\n'
+                        '${widget.schedule.reminderEnabled ? 'Reminder ${widget.schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
+                      ),
+                      isThreeLine: true,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Switch(
+                            value: widget.schedule.active,
+                            onChanged: (_) => widget.onToggle(),
                           ),
-                        ),
-                        title: Text(
-                          widget.schedule.workout,
-                          style: const TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        subtitle: Text(
-                          '${widget.schedule.day} • ${widget.schedule.time}\n'
-                          '${widget.schedule.reminderEnabled ? 'Reminder ${widget.schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
-                        ),
-                        isThreeLine: true,
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: [
-                            Switch(
-                              value: widget.schedule.active,
-                              onChanged: (_) => widget.onToggle(),
+                          IconButton(
+                            visualDensity: VisualDensity.compact,
+                            tooltip: widget.schedule.reminderEnabled ? 'Matikan reminder' : 'Nyalakan reminder',
+                            onPressed: widget.onReminderToggle,
+                            icon: Icon(
+                              widget.schedule.reminderEnabled
+                                  ? Icons.notifications_active_rounded
+                                  : Icons.notifications_off_outlined,
+                              color: widget.schedule.reminderEnabled
+                                  ? theme.colorScheme.primary
+                                  : theme.colorScheme.onSurfaceVariant,
                             ),
-                            IconButton(
-                              visualDensity: VisualDensity.compact,
-                              tooltip: widget.schedule.reminderEnabled ? 'Matikan reminder' : 'Nyalakan reminder',
-                              onPressed: widget.onReminderToggle,
-                              icon: Icon(
-                                widget.schedule.reminderEnabled
-                                    ? Icons.notifications_active_rounded
-                                    : Icons.notifications_off_outlined,
-                                color: widget.schedule.reminderEnabled
-                                    ? theme.colorScheme.primary
-                                    : theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
