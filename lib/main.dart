@@ -1230,26 +1230,50 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    widget.appState.completedToday
-                        ? 'LATIHAN SELESAI'
-                        : 'LATIHAN HARI INI',
-                    style: theme.textTheme.labelMedium?.copyWith(
+                  Builder(
+                    builder: (context) {
+                      final labelText = widget.appState.completedToday
+                          ? 'LATIHAN SELESAI'
+                          : 'LATIHAN HARI INI';
                       // Warna dicampur ke arah putih agar tetap kontras di atas
                       // background wave yang gelap, tapi tetap terasa mengikuti
                       // warna aksen yang dipilih pengguna.
-                      color: Color.lerp(
+                      final fillColor = Color.lerp(
                             widget.appState.accentColor,
                             Colors.white,
                             0.55,
                           ) ??
-                          Colors.white,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                      shadows: [
-                        const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
-                      ],
-                    ),
+                          Colors.white;
+                      final baseStyle = theme.textTheme.labelMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
+                        shadows: [
+                          const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+                        ],
+                      );
+                      final isLight = theme.brightness == Brightness.light;
+                      return Stack(
+                        children: [
+                          // Lapisan stroke (border hitam tipis) hanya dirender
+                          // di mode light, karena di mode dark teks sudah cukup
+                          // kontras tanpa border.
+                          if (isLight)
+                            Text(
+                              labelText,
+                              style: baseStyle?.copyWith(
+                                foreground: Paint()
+                                  ..style = PaintingStyle.stroke
+                                  ..strokeWidth = 1.2
+                                  ..color = Colors.black.withOpacity(0.55),
+                              ),
+                            ),
+                          Text(
+                            labelText,
+                            style: baseStyle?.copyWith(color: fillColor),
+                          ),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 18),
                   Text(
