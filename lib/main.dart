@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -7,6 +8,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
+import 'package:image_picker/image_picker.dart';
 
 ui.FragmentProgram? wavesProgram;
 
@@ -105,24 +107,35 @@ class UserProfile {
   const UserProfile({
     required this.name,
     required this.email,
+    this.photoPath,
   });
 
   final String name;
   final String email;
+  final String? photoPath;
 
-  UserProfile copyWith({String? name, String? email}) => UserProfile(
+  UserProfile copyWith({
+    String? name,
+    String? email,
+    String? photoPath,
+    bool clearPhoto = false,
+  }) =>
+      UserProfile(
         name: name ?? this.name,
         email: email ?? this.email,
+        photoPath: clearPhoto ? null : (photoPath ?? this.photoPath),
       );
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'email': email,
+        'photoPath': photoPath,
       };
 
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
         name: json['name'] as String? ?? 'Andi Ramadhan',
         email: json['email'] as String? ?? 'andi@example.com',
+        photoPath: json['photoPath'] as String?,
       );
 }
 
@@ -440,10 +453,17 @@ class WorkoutAppState extends ChangeNotifier {
     unawaited(_persist());
   }
 
-  void updateProfile({required String name, required String email}) {
+  void updateProfile({
+    required String name,
+    required String email,
+    String? photoPath,
+    bool clearPhoto = false,
+  }) {
     profile = profile.copyWith(
       name: name.trim().isEmpty ? profile.name : name.trim(),
       email: email.trim(),
+      photoPath: photoPath,
+      clearPhoto: clearPhoto,
     );
     notifyListeners();
     unawaited(_persist());
@@ -903,13 +923,18 @@ class HomePage extends StatelessWidget {
                 CircleAvatar(
                   radius: 24,
                   backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Text(
-                    _initials(appState.profile.name),
-                    style: TextStyle(
-                      color: theme.colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
+                  backgroundImage: appState.profile.photoPath != null
+                      ? FileImage(File(appState.profile.photoPath!))
+                      : null,
+                  child: appState.profile.photoPath == null
+                      ? Text(
+                          _initials(appState.profile.name),
+                          style: TextStyle(
+                            color: theme.colorScheme.onPrimaryContainer,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        )
+                      : null,
                 ),
               ],
             ),
@@ -2614,14 +2639,19 @@ class ProfilePage extends StatelessWidget {
                     CircleAvatar(
                       radius: 30,
                       backgroundColor: theme.colorScheme.primaryContainer,
-                      child: Text(
-                        _initials(appState.profile.name),
-                        style: TextStyle(
-                          color: theme.colorScheme.onPrimaryContainer,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 18,
-                        ),
-                      ),
+                      backgroundImage: appState.profile.photoPath != null
+                          ? FileImage(File(appState.profile.photoPath!))
+                          : null,
+                      child: appState.profile.photoPath == null
+                          ? Text(
+                              _initials(appState.profile.name),
+                              style: TextStyle(
+                                color: theme.colorScheme.onPrimaryContainer,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 18,
+                              ),
+                            )
+                          : null,
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -2779,62 +2809,146 @@ class ProfilePage extends StatelessWidget {
   Future<void> _showEditProfile(BuildContext context) async {
     final nameController = TextEditingController(text: appState.profile.name);
     final emailController = TextEditingController(text: appState.profile.email);
+    String? pickedPhotoPath = appState.profile.photoPath;
+    bool removePhoto = false;
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheetContext) => Padding(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          8,
-          20,
-          MediaQuery.of(sheetContext).viewInsets.bottom + 24,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Edit profil',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontWeight: FontWeight.w900,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (context, setModalState) {
+          Future<void> pickPhoto() async {
+            final picker = ImagePicker();
+            final picked = await picker.pickImage(
+              source: ImageSource.gallery,
+              imageQuality: 85,
+              maxWidth: 800,
+            );
+            if (picked != null) {
+              setModalState(() {
+                pickedPhotoPath = picked.path;
+                removePhoto = false;
+              });
+            }
+          }
+
+          final sheetTheme = Theme.of(context);
+          final showsImage = pickedPhotoPath != null && !removePhoto;
+
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              20,
+              8,
+              20,
+              MediaQuery.of(context).viewInsets.bottom + 24,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Edit profil',
+                  style: sheetTheme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.w900,
+                      ),
+                ),
+                const SizedBox(height: 18),
+                Center(
+                  child: GestureDetector(
+                    onTap: pickPhoto,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        CircleAvatar(
+                          radius: 42,
+                          backgroundColor: sheetTheme.colorScheme.primaryContainer,
+                          backgroundImage: showsImage
+                              ? FileImage(File(pickedPhotoPath!))
+                              : null,
+                          child: !showsImage
+                              ? Text(
+                                  _initials(nameController.text),
+                                  style: TextStyle(
+                                    color: sheetTheme.colorScheme.onPrimaryContainer,
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 22,
+                                  ),
+                                )
+                              : null,
+                        ),
+                        Positioned(
+                          right: -2,
+                          bottom: -2,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: sheetTheme.colorScheme.primary,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: sheetTheme.cardTheme.color ??
+                                    sheetTheme.colorScheme.surface,
+                                width: 2,
+                              ),
+                            ),
+                            child: Icon(
+                              Icons.camera_alt_rounded,
+                              size: 16,
+                              color: sheetTheme.colorScheme.onPrimary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
+                ),
+                if (showsImage)
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        setModalState(() => removePhoto = true);
+                      },
+                      child: const Text('Hapus foto'),
+                    ),
+                  ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: nameController,
+                  textCapitalization: TextCapitalization.words,
+                  decoration: const InputDecoration(
+                    labelText: 'Nama',
+                    prefixIcon: Icon(Icons.person_outline_rounded),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: emailController,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(
+                    labelText: 'Email',
+                    prefixIcon: Icon(Icons.mail_outline_rounded),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () {
+                      if (nameController.text.trim().isEmpty) return;
+                      appState.updateProfile(
+                        name: nameController.text,
+                        email: emailController.text,
+                        photoPath: removePhoto ? null : pickedPhotoPath,
+                        clearPhoto: removePhoto,
+                      );
+                      Navigator.pop(sheetContext);
+                    },
+                    child: const Text('Simpan profil'),
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 18),
-            TextField(
-              controller: nameController,
-              textCapitalization: TextCapitalization.words,
-              decoration: const InputDecoration(
-                labelText: 'Nama',
-                prefixIcon: Icon(Icons.person_outline_rounded),
-              ),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: emailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Email',
-                prefixIcon: Icon(Icons.mail_outline_rounded),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: () {
-                  if (nameController.text.trim().isEmpty) return;
-                  appState.updateProfile(
-                    name: nameController.text,
-                    email: emailController.text,
-                  );
-                  Navigator.pop(sheetContext);
-                },
-                child: const Text('Simpan profil'),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
     nameController.dispose();
