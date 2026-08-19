@@ -839,12 +839,22 @@ class _SlidingNavigationBar extends StatelessWidget {
                               transitionBuilder: (child, animation) {
                                 return FadeTransition(opacity: animation, child: child);
                               },
-                              child: Icon(
-                                isSelected ? item.$2 : item.$1,
-                                key: ValueKey(isSelected), // ValueKey penting agar Flutter tahu widget berubah
-                                color: isSelected
-                                    ? theme.colorScheme.onSecondaryContainer
-                                    : theme.colorScheme.onSurfaceVariant,
+                              // Key dipindah ke AnimatedScale (child langsung
+                              // dari AnimatedSwitcher) agar transisi fade tetap
+                              // terdeteksi saat isSelected berubah.
+                              child: AnimatedScale(
+                                key: ValueKey(isSelected),
+                                // Curve overshoot memberi efek "bounce" khas
+                                // seperti navbar Play Store saat icon dipilih.
+                                scale: isSelected ? 1.18 : 1.0,
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeOutBack,
+                                child: Icon(
+                                  isSelected ? item.$2 : item.$1,
+                                  color: isSelected
+                                      ? theme.colorScheme.onSecondaryContainer
+                                      : theme.colorScheme.onSurfaceVariant,
+                                ),
                               ),
                             ),
                           ),
