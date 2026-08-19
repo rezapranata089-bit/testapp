@@ -103,6 +103,13 @@ class NotificationService {
     final dayOfWeek = _dayOfWeekToInt(item.day);
     final scheduledDate = _nextInstanceOfWorkout(dayOfWeek, hour, minute, item.reminderMinutes);
 
+    // TAMPILAN NOTIFIKASI SAAT MUNCUL DI HP:
+    // - Model: Popup / Heads-up (muncul melayang di atas layar).
+    // - Efek: Berbunyi & bergetar (karena Importance.max & Priority.high).
+    // - Judul: "Siap-siap Latihan!"
+    // - Isi: "Waktunya [Jenis Workout] dalam [X] menit."
+    // - Ikon: Menggunakan logo aplikasi (ic_launcher).
+    // - Aksi: Jika di-tap, akan langsung membuka aplikasi Workout Rumah.
     await _flutterLocalNotificationsPlugin.zonedSchedule(
       item.id.hashCode,
       'Siap-siap Latihan!',
