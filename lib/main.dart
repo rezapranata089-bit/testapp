@@ -2802,7 +2802,6 @@ class _ScheduleTileState extends State<_ScheduleTile> with TickerProviderStateMi
                   child: Material(
                     color: theme.cardTheme.color ?? theme.colorScheme.surface,
                     child: InkWell(
-                      onTap: widget.onEdit,
                       child: Padding(
                         padding: const EdgeInsets.all(16),
                         child: Row(
