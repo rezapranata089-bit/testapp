@@ -1414,18 +1414,23 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                 ),
               // Overlay gelap pakai gradient statis (bukan ShaderMask) supaya tetap
               // fade di tepi atas-bawah tanpa saveLayer/compositing tambahan tiap frame.
+              // Mid-tone dibuat lebih gelap khusus di mode terang, karena warna wave
+              // di light theme cenderung lebih terang sehingga teks putih di atasnya
+              // jadi kurang kontras/kurang terlihat.
               Positioned.fill(
                 child: Container(
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
                         Colors.transparent,
-                        Color(0x33000000),
+                        theme.brightness == Brightness.light
+                            ? const Color(0x73000000)
+                            : const Color(0x33000000),
                         Colors.transparent,
                       ],
-                      stops: [0.0, 0.5, 1.0],
+                      stops: const [0.0, 0.5, 1.0],
                     ),
                   ),
                 ),
