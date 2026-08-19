@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -107,35 +107,38 @@ class UserProfile {
   const UserProfile({
     required this.name,
     required this.email,
-    this.photoPath,
+    this.photoBytesBase64,
   });
 
   final String name;
   final String email;
-  final String? photoPath;
+  // Foto disimpan sebagai base64 (bukan path file) agar kompatibel di Flutter
+  // Web, di mana dart:io/File tidak tersedia.
+  final String? photoBytesBase64;
 
   UserProfile copyWith({
     String? name,
     String? email,
-    String? photoPath,
+    String? photoBytesBase64,
     bool clearPhoto = false,
   }) =>
       UserProfile(
         name: name ?? this.name,
         email: email ?? this.email,
-        photoPath: clearPhoto ? null : (photoPath ?? this.photoPath),
+        photoBytesBase64:
+            clearPhoto ? null : (photoBytesBase64 ?? this.photoBytesBase64),
       );
 
   Map<String, dynamic> toJson() => {
         'name': name,
         'email': email,
-        'photoPath': photoPath,
+        'photoBytesBase64': photoBytesBase64,
       };
 
   factory UserProfile.fromJson(Map<String, dynamic> json) => UserProfile(
         name: json['name'] as String? ?? 'Andi Ramadhan',
         email: json['email'] as String? ?? 'andi@example.com',
-        photoPath: json['photoPath'] as String?,
+        photoBytesBase64: json['photoBytesBase64'] as String?,
       );
 }
 
@@ -456,13 +459,13 @@ class WorkoutAppState extends ChangeNotifier {
   void updateProfile({
     required String name,
     required String email,
-    String? photoPath,
+    String? photoBytesBase64,
     bool clearPhoto = false,
   }) {
     profile = profile.copyWith(
       name: name.trim().isEmpty ? profile.name : name.trim(),
       email: email.trim(),
-      photoPath: photoPath,
+      photoBytesBase64: photoBytesBase64,
       clearPhoto: clearPhoto,
     );
     notifyListeners();
@@ -923,10 +926,11 @@ class HomePage extends StatelessWidget {
                 CircleAvatar(
                   radius: 24,
                   backgroundColor: theme.colorScheme.primaryContainer,
-                  backgroundImage: appState.profile.photoPath != null
-                      ? FileImage(File(appState.profile.photoPath!))
+                  backgroundImage: appState.profile.photoBytesBase64 != null
+                      ? MemoryImage(
+                          base64Decode(appState.profile.photoBytesBase64!))
                       : null,
-                  child: appState.profile.photoPath == null
+                  child: appState.profile.photoBytesBase64 == null
                       ? Text(
                           _initials(appState.profile.name),
                           style: TextStyle(
@@ -2639,10 +2643,11 @@ class ProfilePage extends StatelessWidget {
                     CircleAvatar(
                       radius: 30,
                       backgroundColor: theme.colorScheme.primaryContainer,
-                      backgroundImage: appState.profile.photoPath != null
-                          ? FileImage(File(appState.profile.photoPath!))
+                      backgroundImage: appState.profile.photoBytesBase64 != null
+                          ? MemoryImage(
+                              base64Decode(appState.profile.photoBytesBase64!))
                           : null,
-                      child: appState.profile.photoPath == null
+                      child: appState.profile.photoBytesBase64 == null
                           ? Text(
                               _initials(appState.profile.name),
                               style: TextStyle(
@@ -2809,7 +2814,9 @@ class ProfilePage extends StatelessWidget {
   Future<void> _showEditProfile(BuildContext context) async {
     final nameController = TextEditingController(text: appState.profile.name);
     final emailController = TextEditingController(text: appState.profile.email);
-    String? pickedPhotoPath = appState.profile.photoPath;
+    Uint8List? pickedPhotoBytes = appState.profile.photoBytesBase64 != null
+        ? base64Decode(appState.profile.photoBytesBase64!)
+        : null;
     bool removePhoto = false;
     await showModalBottomSheet<void>(
       context: context,
@@ -2824,17 +2831,19 @@ class ProfilePage extends StatelessWidget {
               imageQuality: 85,
               maxWidth: 800,
             );
+            if (picked == null) return;
+            // readAsBytes() bekerja di semua platform (web & mobile),
+            // beda dengan picked.path yang di web berupa blob URL saja.
+            final bytes = await picked.readAsBytes();
             if (!context.mounted) return;
-            if (picked != null) {
-              setModalState(() {
-                pickedPhotoPath = picked.path;
-                removePhoto = false;
-              });
-            }
+            setModalState(() {
+              pickedPhotoBytes = bytes;
+              removePhoto = false;
+            });
           }
 
           final sheetTheme = Theme.of(context);
-          final showsImage = pickedPhotoPath != null && !removePhoto;
+          final showsImage = pickedPhotoBytes != null && !removePhoto;
 
           return Padding(
             padding: EdgeInsets.fromLTRB(
@@ -2864,7 +2873,7 @@ class ProfilePage extends StatelessWidget {
                           radius: 42,
                           backgroundColor: sheetTheme.colorScheme.primaryContainer,
                           backgroundImage: showsImage
-                              ? FileImage(File(pickedPhotoPath!))
+                              ? MemoryImage(pickedPhotoBytes!)
                               : null,
                           child: !showsImage
                               ? Text(
@@ -2938,7 +2947,9 @@ class ProfilePage extends StatelessWidget {
                       FocusScope.of(context).unfocus();
                       final capturedName = nameController.text;
                       final capturedEmail = emailController.text;
-                      final capturedPhoto = removePhoto ? null : pickedPhotoPath;
+                      final capturedPhoto = (removePhoto || pickedPhotoBytes == null)
+                          ? null
+                          : base64Encode(pickedPhotoBytes!);
                       final capturedRemove = removePhoto;
                       Navigator.pop(sheetContext);
                       // Tunda update state (notifyListeners) sampai setelah frame
@@ -2948,7 +2959,7 @@ class ProfilePage extends StatelessWidget {
                         appState.updateProfile(
                           name: capturedName,
                           email: capturedEmail,
-                          photoPath: capturedPhoto,
+                          photoBytesBase64: capturedPhoto,
                           clearPhoto: capturedRemove,
                         );
                       });
