@@ -2173,9 +2173,8 @@ class _ScrollRevealItem extends StatefulWidget {
 }
 
 class _ScrollRevealItemState extends State<_ScrollRevealItem>
-    with SingleTickerProviderStateMixin {
+    with AutomaticKeepAliveClientMixin, SingleTickerProviderStateMixin {
   // Durasi dinaikkan agar efek bounce (overshoot lalu memantul balik)
-  // punya cukup waktu untuk terasa fluid, bukan terpotong terlalu cepat.
   late final AnimationController _controller = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 750),
@@ -2260,7 +2259,11 @@ class _ScrollRevealItemState extends State<_ScrollRevealItem>
   }
 
   @override
+  bool get wantKeepAlive => true;
+
+  @override
   Widget build(BuildContext context) {
+    super.build(context);
     return FadeTransition(
       opacity: _fade,
       child: SlideTransition(
