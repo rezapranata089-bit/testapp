@@ -2453,8 +2453,6 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
           child: Dismissible(
             key: ValueKey(widget.schedule.id),
             direction: DismissDirection.endToStart,
-            // Hilangkan Clip default Dismissible agar kartu utama bisa keluar melewati layar
-            clipBehavior: Clip.none,
             onUpdate: (details) {
               if (_swipeProgress != details.progress && mounted) {
                 setState(() => _swipeProgress = details.progress);
