@@ -2884,6 +2884,7 @@ class _ScheduleTileState extends State<_ScheduleTile> with TickerProviderStateMi
                 ),
               ),
             ),
+            ),
           ),
         ],
       ),
