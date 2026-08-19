@@ -13,11 +13,139 @@ import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart'; // Tambahkan ini untuk cek kIsWeb
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:timezone/data/latest_all.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
+import 'package:flutter_timezone/flutter_timezone.dart';
+
+class NotificationService {
+  static final NotificationService instance = NotificationService._init();
+  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  NotificationService._init();
+
+  Future<void> initialize() async {
+    if (kIsWeb) return;
+    tz.initializeTimeZones();
+    try {
+      final String timeZoneName = await FlutterTimezone.getLocalTimezone();
+      tz.setLocalLocation(tz.getLocation(timeZoneName));
+    } catch (_) {}
+
+    const androidInit = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const darwinInit = DarwinInitializationSettings(
+      requestAlertPermission: false,
+      requestBadgePermission: false,
+      requestSoundPermission: false,
+    );
+    const initSettings = InitializationSettings(android: androidInit, iOS: darwinInit);
+
+    await _flutterLocalNotificationsPlugin.initialize(initSettings);
+  }
+
+  Future<void> requestPermission() async {
+    if (kIsWeb) return;
+    final androidPlugin = _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    await androidPlugin?.requestNotificationsPermission();
+
+    final iosPlugin = _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
+    await iosPlugin?.requestPermissions(alert: true, badge: true, sound: true);
+  }
+
+  int _dayOfWeekToInt(String day) {
+    switch (day.toLowerCase()) {
+      case 'senin': return 1;
+      case 'selasa': return 2;
+      case 'rabu': return 3;
+      case 'kamis': return 4;
+      case 'jumat': return 5;
+      case 'sabtu': return 6;
+      case 'minggu': return 7;
+      default: return 1;
+    }
+  }
+
+  tz.TZDateTime _nextInstanceOfWorkout(int dayOfWeek, int hour, int minute, int offsetMinutes) {
+    tz.TZDateTime now = tz.TZDateTime.now(tz.local);
+    tz.TZDateTime scheduledDate = tz.TZDateTime(tz.local, now.year, now.month, now.day, hour, minute);
+    
+    // Sesuaikan hari
+    while (scheduledDate.weekday != dayOfWeek) {
+      scheduledDate = scheduledDate.add(const Duration(days: 1));
+    }
+    
+    // Terapkan offset pengingat (contoh: mundur 30 menit)
+    scheduledDate = scheduledDate.subtract(Duration(minutes: offsetMinutes));
+    
+    // Jika waktu yang dijadwalkan sudah terlewat di hari ini, pindahkan ke minggu depan
+    if (scheduledDate.isBefore(now)) {
+      scheduledDate = scheduledDate.add(const Duration(days: 7));
+    }
+    return scheduledDate;
+  }
+
+  Future<void> scheduleWorkoutReminder(ScheduleItem item) async {
+    if (kIsWeb) return;
+    await cancelReminder(item.id);
+
+    if (!item.active || !item.reminderEnabled) return;
+
+    await requestPermission();
+
+    final timeParts = item.time.split(':');
+    if (timeParts.length != 2) return;
+    final hour = int.tryParse(timeParts[0]) ?? 18;
+    final minute = int.tryParse(timeParts[1]) ?? 30;
+
+    final dayOfWeek = _dayOfWeekToInt(item.day);
+    final scheduledDate = _nextInstanceOfWorkout(dayOfWeek, hour, minute, item.reminderMinutes);
+
+    await _flutterLocalNotificationsPlugin.zonedSchedule(
+      item.id.hashCode,
+      'Siap-siap Latihan!',
+      'Waktunya ${item.workout} dalam ${item.reminderMinutes} menit.',
+      scheduledDate,
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'workout_reminder_channel',
+          'Workout Reminders',
+          channelDescription: 'Notifikasi untuk jadwal latihanmu',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+    );
+  }
+
+  Future<void> cancelReminder(String id) async {
+    if (kIsWeb) return;
+    await _flutterLocalNotificationsPlugin.cancel(id.hashCode);
+  }
+
+  Future<void> syncAllReminders(List<ScheduleItem> schedules) async {
+    if (kIsWeb) return;
+    await _flutterLocalNotificationsPlugin.cancelAll();
+    for (final s in schedules) {
+      if (s.active && s.reminderEnabled) {
+        await scheduleWorkoutReminder(s);
+      }
+    }
+  }
+}
 
 ui.FragmentProgram? wavesProgram;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  await NotificationService.instance.initialize();
 
   try {
     wavesProgram = await ui.FragmentProgram.fromAsset('shaders/waves.frag');
@@ -552,6 +680,7 @@ class WorkoutAppState extends ChangeNotifier {
         // Load data langsung dari file database .db (SQLite)
         history = await DatabaseHelper.instance.getAllHistory();
         schedules = await DatabaseHelper.instance.getAllSchedules();
+        unawaited(NotificationService.instance.syncAllReminders(schedules));
       }
       
     } catch (_) {
@@ -665,6 +794,7 @@ class WorkoutAppState extends ChangeNotifier {
     } else {
       unawaited(DatabaseHelper.instance.insertSchedule(newItem));
     }
+    unawaited(NotificationService.instance.scheduleWorkoutReminder(newItem));
   }
 
   void toggleSchedule(String id) {
@@ -674,12 +804,13 @@ class WorkoutAppState extends ChangeNotifier {
         .toList();
     notifyListeners();
     
+    final updatedItem = schedules.firstWhere((item) => item.id == id);
     if (kIsWeb) {
       unawaited(_persist());
     } else {
-      final updatedItem = schedules.firstWhere((item) => item.id == id);
       unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
     }
+    unawaited(NotificationService.instance.scheduleWorkoutReminder(updatedItem));
   }
 
   void setScheduleReminder(String id, bool enabled) {
@@ -690,12 +821,13 @@ class WorkoutAppState extends ChangeNotifier {
         .toList();
     notifyListeners();
     
+    final updatedItem = schedules.firstWhere((item) => item.id == id);
     if (kIsWeb) {
       unawaited(_persist());
     } else {
-      final updatedItem = schedules.firstWhere((item) => item.id == id);
       unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
     }
+    unawaited(NotificationService.instance.scheduleWorkoutReminder(updatedItem));
   }
 
   void setAllRemindersEnabled(bool enabled) {
@@ -709,6 +841,7 @@ class WorkoutAppState extends ChangeNotifier {
     } else {
       unawaited(DatabaseHelper.instance.updateAllSchedulesReminder(enabled));
     }
+    unawaited(NotificationService.instance.syncAllReminders(schedules));
   }
 
   void removeSchedule(String id) {
@@ -720,6 +853,7 @@ class WorkoutAppState extends ChangeNotifier {
     } else {
       unawaited(DatabaseHelper.instance.deleteSchedule(id));
     }
+    unawaited(NotificationService.instance.cancelReminder(id));
   }
 
   void updateSchedule(
@@ -744,12 +878,13 @@ class WorkoutAppState extends ChangeNotifier {
     }).toList();
     notifyListeners();
     
+    final updatedItem = schedules.firstWhere((item) => item.id == id);
     if (kIsWeb) {
       unawaited(_persist());
     } else {
-      final updatedItem = schedules.firstWhere((item) => item.id == id);
       unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
     }
+    unawaited(NotificationService.instance.scheduleWorkoutReminder(updatedItem));
   }
 }
 

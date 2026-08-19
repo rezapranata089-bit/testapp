@@ -10,5 +10,17 @@
     "block": 1,
     "layer": "auto_create_cancelled",
     "file": "shaders/waves.frag"
+  },
+  {
+    "timestamp": "2026-08-20 04:11:50",
+    "block": 1,
+    "layer": "not_found_in_project",
+    "file": "ios/Runner/AppDelegate.swift"
+  },
+  {
+    "timestamp": "2026-08-20 04:12:37",
+    "block": 1,
+    "layer": "not_found_in_project",
+    "file": "ios/Runner/AppDelegate.swift"
   }
 ]
