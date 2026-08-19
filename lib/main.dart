@@ -1261,12 +1261,14 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
             ? (controller.page ?? 0.0)
             : 0.0;
         final distance = page.abs().clamp(0.0, 1.0);
-        // Hanya fade di tepi KANAN card: tipis saat diam, melebar saat
-        // digeser ke tab sebelah, biar edge-nya nge-blend bukan terpotong flat.
-        const baseFadeWidth = 0.05;
+        // Mask mati total saat diam (baseFadeWidth 0). Begitu mulai digeser,
+        // lebar fade langsung melonjak cepat (easeOut) baru melandai menuju
+        // lebar maksimal saat sudah dekat tab sebelah.
+        const baseFadeWidth = 0.0;
         const swipeFadeWidth = 0.32;
+        final easedDistance = Curves.easeOut.transform(distance);
         final fadeWidth =
-            baseFadeWidth + (swipeFadeWidth - baseFadeWidth) * distance;
+            baseFadeWidth + (swipeFadeWidth - baseFadeWidth) * easedDistance;
         final fadeStart = (1.0 - fadeWidth).clamp(0.0, 1.0);
         return ShaderMask(
           shaderCallback: (bounds) {
