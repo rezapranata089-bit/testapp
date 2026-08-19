@@ -1957,10 +1957,20 @@ class _TiltCardState extends State<_TiltCard> {
   double _glareX = 0.5;
   double _glareY = 0.5;
   bool _isActive = false;
+  bool _isInteractive = false;
+  Timer? _holdTimer;
+  PointerEvent? _lastEvent;
 
-  void _updatePointer(PointerEvent event) {
+  @override
+  void dispose() {
+    _holdTimer?.cancel();
+    super.dispose();
+  }
+
+  void _updateTransform(PointerEvent event, {required double maxTilt}) {
+    _lastEvent = event;
     final renderBox = context.findRenderObject() as RenderBox?;
-    if (renderBox == null) return;
+    if (renderBox == null || !renderBox.attached) return;
     final size = renderBox.size;
     final localPos = renderBox.globalToLocal(event.position);
     
@@ -1968,37 +1978,92 @@ class _TiltCardState extends State<_TiltCard> {
     final y = ((localPos.dy / size.height) * 2 - 1).clamp(-1.0, 1.0);
 
     setState(() {
-      // Rotasi 3D ke arah pointer (max kemiringan 8 derajat)
-      _tiltX = -y * 8.0; 
-      _tiltY = x * 8.0;
+      _tiltX = -y * maxTilt; 
+      _tiltY = x * maxTilt;
       _glareX = (localPos.dx / size.width).clamp(0.0, 1.0);
       _glareY = (localPos.dy / size.height).clamp(0.0, 1.0);
-      _isActive = true;
     });
   }
 
-  void _resetPointer(PointerEvent event) {
+  void _onPointerDown(PointerEvent event) {
+    // Mouse langsung masuk ke mode interaktif penuh tanpa perlu ditahan
+    if (event.kind == ui.PointerDeviceKind.mouse) {
+       setState(() {
+         _isInteractive = true;
+         _isActive = true;
+       });
+       _updateTransform(event, maxTilt: 8.0);
+       return;
+    }
+
+    _holdTimer?.cancel();
+    setState(() {
+      _isInteractive = false;
+      _isActive = true;
+    });
+    
+    // Saat disentuh awal (atau saat di-scroll), berikan miring sedikit saja
+    _updateTransform(event, maxTilt: 2.5);
+
+    _holdTimer = Timer(const Duration(seconds: 1), () {
+      if (mounted && _isActive) {
+        HapticFeedback.heavyImpact();
+        setState(() {
+          _isInteractive = true;
+        });
+        if (_lastEvent != null) {
+          // Begitu 1 detik berlalu, aktifkan kemiringan ekstrem/penuh
+          _updateTransform(_lastEvent!, maxTilt: 12.0);
+        }
+      }
+    });
+  }
+
+  void _onPointerMove(PointerEvent event) {
+    if (!_isActive) return;
+    
+    if (event.kind == ui.PointerDeviceKind.mouse || _isInteractive) {
+      // Jika mode interaktif aktif, kartu mengikuti pergerakan dengan bebas
+      _updateTransform(event, maxTilt: event.kind == ui.PointerDeviceKind.mouse ? 8.0 : 12.0);
+    } else {
+      // Jika masih dalam hitungan < 1 detik, kartu hanya merespons sangat tipis
+      _updateTransform(event, maxTilt: 2.5);
+    }
+  }
+
+  void _onPointerUpCancel(PointerEvent event) {
+    _holdTimer?.cancel();
+    if (!mounted) return;
     setState(() {
       _tiltX = 0.0;
       _tiltY = 0.0;
       _isActive = false;
+      _isInteractive = false;
     });
+  }
+
+  void _onMouseHover(PointerEvent event) {
+    setState(() {
+      _isActive = true;
+      _isInteractive = true;
+    });
+    _updateTransform(event, maxTilt: 8.0);
   }
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
-      onEnter: _updatePointer,
-      onHover: _updatePointer,
-      onExit: _resetPointer,
+      onEnter: _onMouseHover,
+      onHover: _onMouseHover,
+      onExit: _onPointerUpCancel,
       child: Listener(
         behavior: HitTestBehavior.translucent,
-        onPointerDown: _updatePointer,
-        onPointerMove: _updatePointer,
-        onPointerUp: _resetPointer,
-        onPointerCancel: _resetPointer,
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: _onPointerUpCancel,
+        onPointerCancel: _onPointerUpCancel,
         child: TweenAnimationBuilder(
-          duration: Duration(milliseconds: _isActive ? 100 : 400),
+          duration: Duration(milliseconds: _isActive ? 150 : 400),
           curve: _isActive ? Curves.easeOutCubic : Curves.easeOutBack,
           tween: Tween<Offset>(begin: Offset.zero, end: Offset(_tiltX, _tiltY)),
           builder: (context, Offset tilt, child) {
@@ -2023,7 +2088,8 @@ class _TiltCardState extends State<_TiltCard> {
                   child: ClipRRect(
                     borderRadius: BorderRadius.circular(widget.borderRadius),
                     child: AnimatedOpacity(
-                      opacity: _isActive ? 1.0 : 0.0,
+                      // Cahaya Glare hanya tipis saat ditekan, tapi jadi terang benderang setelah hold 1 detik
+                      opacity: _isInteractive ? 1.0 : (_isActive ? 0.15 : 0.0),
                       duration: const Duration(milliseconds: 300),
                       child: TweenAnimationBuilder(
                         duration: Duration(milliseconds: _isActive ? 100 : 300),
