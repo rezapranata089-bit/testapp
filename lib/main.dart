@@ -289,6 +289,12 @@ class WorkoutAppState extends ChangeNotifier {
     name: 'Andi Ramadhan',
     email: 'andi@example.com',
   );
+  // Cache hasil decode agar instance Uint8List tetap sama antar rebuild.
+  // MemoryImage membandingkan kesamaan lewat referensi bytes, jadi kalau
+  // di-decode ulang tiap build (instance baru), Flutter menganggapnya
+  // gambar berbeda dan me-redecode -> menyebabkan blink saat pindah tab.
+  Uint8List? _cachedPhotoBytes;
+  Uint8List? get profilePhotoBytes => _cachedPhotoBytes;
   List<WorkoutHistory> history = [];
   List<ScheduleItem> schedules = [
     const ScheduleItem(
@@ -382,6 +388,7 @@ class WorkoutAppState extends ChangeNotifier {
           Map<String, dynamic>.from(jsonDecode(savedProfile) as Map),
         );
       }
+      _syncPhotoCache();
 
       final savedHistory = prefs.getString('history');
       if (savedHistory != null) {
@@ -409,6 +416,19 @@ class WorkoutAppState extends ChangeNotifier {
 
     isLoading = false;
     notifyListeners();
+  }
+
+  void _syncPhotoCache() {
+    final base64Photo = profile.photoBytesBase64;
+    if (base64Photo == null) {
+      _cachedPhotoBytes = null;
+      return;
+    }
+    try {
+      _cachedPhotoBytes = base64Decode(base64Photo);
+    } catch (_) {
+      _cachedPhotoBytes = null;
+    }
   }
 
   Future<void> _persist() async {
@@ -468,6 +488,7 @@ class WorkoutAppState extends ChangeNotifier {
       photoBytesBase64: photoBytesBase64,
       clearPhoto: clearPhoto,
     );
+    _syncPhotoCache();
     notifyListeners();
     unawaited(_persist());
   }
@@ -926,11 +947,10 @@ class HomePage extends StatelessWidget {
                 CircleAvatar(
                   radius: 24,
                   backgroundColor: theme.colorScheme.primaryContainer,
-                  backgroundImage: appState.profile.photoBytesBase64 != null
-                      ? MemoryImage(
-                          base64Decode(appState.profile.photoBytesBase64!))
+                  backgroundImage: appState.profilePhotoBytes != null
+                      ? MemoryImage(appState.profilePhotoBytes!)
                       : null,
-                  child: appState.profile.photoBytesBase64 == null
+                  child: appState.profilePhotoBytes == null
                       ? Text(
                           _initials(appState.profile.name),
                           style: TextStyle(
@@ -2655,11 +2675,10 @@ class ProfilePage extends StatelessWidget {
                     CircleAvatar(
                       radius: 30,
                       backgroundColor: theme.colorScheme.primaryContainer,
-                      backgroundImage: appState.profile.photoBytesBase64 != null
-                          ? MemoryImage(
-                              base64Decode(appState.profile.photoBytesBase64!))
+                      backgroundImage: appState.profilePhotoBytes != null
+                          ? MemoryImage(appState.profilePhotoBytes!)
                           : null,
-                      child: appState.profile.photoBytesBase64 == null
+                      child: appState.profilePhotoBytes == null
                           ? Text(
                               _initials(appState.profile.name),
                               style: TextStyle(
