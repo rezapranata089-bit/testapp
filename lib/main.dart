@@ -2066,7 +2066,7 @@ class SchedulePage extends StatelessWidget {
           const SizedBox(height: 42),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: _WeekStrip(),
+            child: _WeekStrip(appState: appState),
           ),
           const SizedBox(height: 42),
           Padding(
@@ -2290,50 +2290,153 @@ class SchedulePage extends StatelessWidget {
 }
 
 class _WeekStrip extends StatelessWidget {
+  const _WeekStrip({required this.appState});
+  final WorkoutAppState appState;
+
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final today = DateTime.now().weekday;
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    // Cari tanggal hari Senin minggu ini
+    final monday = today.subtract(Duration(days: now.weekday - 1));
+    
     const labels = ['S', 'S', 'R', 'K', 'J', 'S', 'M'];
+    const dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
+
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: List.generate(7, (index) {
-        final dayNumber = index + 1;
-        final isToday = dayNumber == today;
-        return Column(
+        final date = monday.add(Duration(days: index));
+        final isToday = date == today;
+        final daySchedules = appState.schedules
+            .where((s) => s.day == dayNames[index] && s.active)
+            .toList();
+        
+        return _DayStripItem(
+          label: labels[index],
+          date: date,
+          isToday: isToday,
+          dayName: dayNames[index],
+          schedules: daySchedules,
+        );
+      }),
+    );
+  }
+}
+
+class _DayStripItem extends StatefulWidget {
+  const _DayStripItem({
+    required this.label,
+    required this.date,
+    required this.isToday,
+    required this.dayName,
+    required this.schedules,
+  });
+
+  final String label;
+  final DateTime date;
+  final bool isToday;
+  final String dayName;
+  final List<ScheduleItem> schedules;
+
+  @override
+  State<_DayStripItem> createState() => _DayStripItemState();
+}
+
+class _DayStripItemState extends State<_DayStripItem> {
+  bool _isPressed = false;
+
+  void _handleTap() {
+    HapticFeedback.selectionClick();
+    final msg = widget.schedules.isEmpty
+        ? 'Waktunya istirahat! Tidak ada jadwal hari ${widget.dayName}.'
+        : '${widget.dayName}: Ada ${widget.schedules.length} jadwal latihan aktif.';
+    
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: const Duration(seconds: 2),
+      ));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        _handleTap();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedScale(
+        scale: _isPressed ? 0.85 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOutCubic,
+        child: Column(
           children: [
             Text(
-              labels[index],
+              widget.label,
               style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w700,
+                color: widget.isToday ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 8),
             AnimatedContainer(
               duration: const Duration(milliseconds: 250),
-              width: 38,
-              height: 44,
-              alignment: Alignment.center,
+              width: 40,
+              height: 48,
               decoration: BoxDecoration(
-                color: isToday
+                color: widget.isToday
                     ? theme.colorScheme.primary
-                    : theme.colorScheme.surfaceContainerHighest,
+                    : (widget.schedules.isNotEmpty
+                        ? theme.colorScheme.primaryContainer.withOpacity(0.4)
+                        : theme.colorScheme.surfaceContainerHighest),
                 borderRadius: BorderRadius.circular(14),
+                border: widget.isToday
+                    ? null
+                    : Border.all(
+                        color: widget.schedules.isNotEmpty
+                            ? theme.colorScheme.primary.withOpacity(0.3)
+                            : Colors.transparent,
+                        width: 1.5,
+                      ),
               ),
-              child: Text(
-                '$dayNumber',
-                style: TextStyle(
-                  color: isToday
-                      ? theme.colorScheme.onPrimary
-                      : theme.colorScheme.onSurface,
-                  fontWeight: FontWeight.w800,
-                ),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${widget.date.day}',
+                    style: TextStyle(
+                      color: widget.isToday
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.onSurface,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  if (widget.schedules.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: widget.isToday
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.primary,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ),
           ],
-        );
-      }),
+        ),
+      ),
     );
   }
 }
