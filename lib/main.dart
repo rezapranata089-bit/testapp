@@ -698,6 +698,7 @@ class _MainShellState extends State<MainShell> {
         child: HomePage(
           appState: widget.appState,
           isActive: selectedIndex == 0,
+          pageController: _pageController,
         ),
       ),
       _KeepAlivePage(child: SchedulePage(appState: widget.appState)),
@@ -851,10 +852,16 @@ class _KeepAlivePageState extends State<_KeepAlivePage>
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({required this.appState, this.isActive = true, super.key});
+  const HomePage({
+    required this.appState,
+    this.isActive = true,
+    this.pageController,
+    super.key,
+  });
 
   final WorkoutAppState appState;
   final bool isActive;
+  final PageController? pageController;
 
   @override
   Widget build(BuildContext context) {
@@ -913,7 +920,11 @@ class HomePage extends StatelessWidget {
             child: _AiPromptInput(),
           ),
           const SizedBox(height: 16),
-          _TodayWorkoutCard(appState: appState, isActive: isActive),
+          _TodayWorkoutCard(
+            appState: appState,
+            isActive: isActive,
+            pageController: pageController,
+          ),
           const SizedBox(height: 4), // Jarak diperkecil
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1050,10 +1061,15 @@ class _AiPromptInput extends StatelessWidget {
 }
 
 class _TodayWorkoutCard extends StatefulWidget {
-  const _TodayWorkoutCard({required this.appState, this.isActive = true});
+  const _TodayWorkoutCard({
+    required this.appState,
+    this.isActive = true,
+    this.pageController,
+  });
 
   final WorkoutAppState appState;
   final bool isActive;
+  final PageController? pageController;
 
   @override
   State<_TodayWorkoutCard> createState() => _TodayWorkoutCardState();
@@ -1237,7 +1253,25 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
       ),
     );
 
-    return Stack(
+    return AnimatedBuilder(
+      animation: widget.pageController ?? const AlwaysStoppedAnimation(0.0),
+      builder: (context, child) {
+        final controller = widget.pageController;
+        final page = (controller != null && controller.hasClients)
+            ? (controller.page ?? 0.0)
+            : 0.0;
+        final distance = page.abs().clamp(0.0, 1.0);
+        final scale = 1.0 - (distance * 0.06);
+        final opacity = 1.0 - distance;
+        return Transform.scale(
+          scale: scale,
+          child: Opacity(
+            opacity: opacity,
+            child: child,
+          ),
+        );
+      },
+      child: Stack(
       children: [
         Positioned.fill(
           child: ShaderMask(
@@ -1315,6 +1349,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
         ),
         content,
       ],
+    ),
     );
   }
 }
