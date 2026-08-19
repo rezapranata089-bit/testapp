@@ -1264,7 +1264,16 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                                 foreground: Paint()
                                   ..style = PaintingStyle.stroke
                                   ..strokeWidth = 1.2
-                                  ..color = Colors.black.withOpacity(0.55),
+                                  // Warna border mengikuti aksen, digelapkan
+                                  // sedikit ke arah hitam agar tetap terlihat
+                                  // sebagai outline, bukan hitam polos.
+                                  ..color = (Color.lerp(
+                                        widget.appState.accentColor,
+                                        Colors.black,
+                                        0.45,
+                                      ) ??
+                                      widget.appState.accentColor)
+                                      .withOpacity(0.65),
                               ),
                             ),
                           Text(
