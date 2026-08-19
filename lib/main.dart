@@ -2732,51 +2732,83 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
                   ),
                   child: Material(
                     color: theme.cardTheme.color ?? theme.colorScheme.surface,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      leading: CircleAvatar(
-                        backgroundColor: widget.schedule.active
-                            ? theme.colorScheme.primaryContainer
-                            : theme.colorScheme.surfaceContainerHighest,
-                        child: Icon(
-                          Icons.fitness_center_rounded,
-                          color: widget.schedule.active
-                              ? theme.colorScheme.onPrimaryContainer
-                              : theme.colorScheme.onSurfaceVariant,
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(
-                        widget.schedule.workout,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        '${widget.schedule.day} • ${widget.schedule.time}\n'
-                        '${widget.schedule.reminderEnabled ? 'Reminder ${widget.schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
-                      ),
-                      isThreeLine: true,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Switch(
-                            value: widget.schedule.active,
-                            onChanged: (_) => widget.onToggle(),
-                          ),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            tooltip: widget.schedule.reminderEnabled ? 'Matikan reminder' : 'Nyalakan reminder',
-                            onPressed: widget.onReminderToggle,
-                            icon: Icon(
-                              widget.schedule.reminderEnabled
-                                  ? Icons.notifications_active_rounded
-                                  : Icons.notifications_off_outlined,
-                              color: widget.schedule.reminderEnabled
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurfaceVariant,
+                    child: InkWell(
+                      onTap: widget.onEdit,
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              backgroundColor: widget.schedule.active
+                                  ? theme.colorScheme.primaryContainer
+                                  : theme.colorScheme.surfaceContainerHighest,
+                              child: Icon(
+                                Icons.fitness_center_rounded,
+                                color: widget.schedule.active
+                                    ? theme.colorScheme.onPrimaryContainer
+                                    : theme.colorScheme.onSurfaceVariant,
+                                size: 20,
+                              ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    widget.schedule.workout,
+                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '${widget.schedule.day} • ${widget.schedule.time}',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                      fontSize: 13,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  GestureDetector(
+                                    onTap: widget.onReminderToggle,
+                                    behavior: HitTestBehavior.opaque,
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(
+                                          widget.schedule.reminderEnabled
+                                              ? Icons.notifications_active_rounded
+                                              : Icons.notifications_off_outlined,
+                                          size: 14,
+                                          color: widget.schedule.reminderEnabled
+                                              ? theme.colorScheme.primary
+                                              : theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          widget.schedule.reminderEnabled
+                                              ? '${widget.schedule.reminderMinutes} mnt sebelumnya'
+                                              : 'Reminder mati',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: widget.schedule.reminderEnabled
+                                                ? theme.colorScheme.primary
+                                                : theme.colorScheme.onSurfaceVariant,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Switch(
+                              value: widget.schedule.active,
+                              onChanged: (_) => widget.onToggle(),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
