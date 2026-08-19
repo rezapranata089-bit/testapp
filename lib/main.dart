@@ -2435,19 +2435,22 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
       child: Stack(
         children: [
           // CARD DELETE (BELAKANG) - Bersifat statis (stay in place)
+          // Sekarang meluas hingga pinggir layar (tanpa padding horizontal)
           if (_swipeProgress > 0)
             Positioned.fill(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: bgColor,
-                    borderRadius: BorderRadius.circular(24),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: bgColor,
+                  borderRadius: BorderRadius.horizontal(
+                    left: const Radius.circular(24),
+                    // Radius kanan mengecil saat digeser agar menyatu dengan tepi layar
+                    right: Radius.circular(24 * (1 - _swipeProgress)),
                   ),
-                  alignment: Alignment.centerRight,
-                  padding: const EdgeInsets.only(right: 22),
-                  child: Icon(Icons.delete_outline_rounded, color: iconColor),
                 ),
+                alignment: Alignment.centerRight,
+                // Padding kanan ditambah 20 untuk kompensasi hilangnya padding parent
+                padding: const EdgeInsets.only(right: 42),
+                child: Icon(Icons.delete_outline_rounded, color: iconColor),
               ),
             ),
 
@@ -2490,9 +2493,17 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
                   return false;
                 },
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  padding: EdgeInsets.symmetric(
+                    // Padding mengecil hingga 0 saat digeser sehingga card menyentuh tepi layar
+                    horizontal: 20 * (1 - _swipeProgress),
+                  ),
                   child: Card(
                     clipBehavior: Clip.antiAlias,
+                    shape: RoundedRectangleBorder(
+                      // Radius mengecil saat digeser untuk efek transisi yang mulus ke tepi layar
+                      borderRadius:
+                          BorderRadius.circular(24 * (1 - _swipeProgress)),
+                    ),
                     child: Material(
                       color: theme.cardTheme.color ?? theme.colorScheme.surface,
                       child: ListTile(
