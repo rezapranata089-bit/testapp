@@ -1,0 +1,17 @@
+PENYEBAB PYTHON ERROR:
+Script Python gagal karena project Flutter Anda menggunakan `build.gradle.kts` (Kotlin DSL), bukan `build.gradle` biasa.
+
+TAPI KABAR BAIKNYA:
+Setelah melihat kode lengkap Anda, file `android/app/build.gradle.kts` Anda TERNYATA SUDAH DILENGKAPI sistem untuk membaca Environment Variables secara otomatis (`System.getenv(...)`). 
+Artinya, kita TIDAK PERLU membuat `key.properties` atau memakai script Python sama sekali! Pengaturan YAML Anda yang pertama sebenarnya sudah benar jalurnya.
+
+LALU KENAPA ERROR SAAT PERTAMA KALI BUILD?
+Pesan error di log pertama Anda adalah: "keystore password was incorrect".
+Itu terjadi karena password yang dikirim dari GitHub Secrets ke file gradle SALAH, sehingga gradle tidak bisa membuka file `.jks` Anda.
+
+YANG HARUS ANDA LAKUKAN SEKARANG:
+1. Commit & Push perubahan file `.github/workflows/build.yml` ini (Ini akan membuang script python sebelumnya dan mengembalikan step `env` ke kondisi yang benar).
+2. Buka repository GitHub Anda di browser > Settings > Secrets and variables > Actions.
+3. Hapus dan buat ulang secret `KEYSTORE_PASSWORD` dan `KEY_PASSWORD`.
+4. Pastikan Anda memasukkan password yang BENAR persis seperti saat Anda membuat file keystore tersebut. (Biasanya `KEYSTORE_PASSWORD` dan `KEY_PASSWORD` isinya sama).
+5. Jalankan ulang workflow CI/CD nya.
