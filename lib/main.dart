@@ -694,7 +694,12 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      _KeepAlivePage(child: HomePage(appState: widget.appState)),
+      _KeepAlivePage(
+        child: HomePage(
+          appState: widget.appState,
+          isActive: selectedIndex == 0,
+        ),
+      ),
       _KeepAlivePage(child: SchedulePage(appState: widget.appState)),
       _KeepAlivePage(child: ProgressPage(appState: widget.appState)),
       _KeepAlivePage(child: ProfilePage(appState: widget.appState)),
@@ -846,9 +851,10 @@ class _KeepAlivePageState extends State<_KeepAlivePage>
 }
 
 class HomePage extends StatelessWidget {
-  const HomePage({required this.appState, super.key});
+  const HomePage({required this.appState, this.isActive = true, super.key});
 
   final WorkoutAppState appState;
+  final bool isActive;
 
   @override
   Widget build(BuildContext context) {
@@ -907,7 +913,7 @@ class HomePage extends StatelessWidget {
             child: _AiPromptInput(),
           ),
           const SizedBox(height: 16),
-          _TodayWorkoutCard(appState: appState),
+          _TodayWorkoutCard(appState: appState, isActive: isActive),
           const SizedBox(height: 4), // Jarak diperkecil
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -1044,30 +1050,58 @@ class _AiPromptInput extends StatelessWidget {
 }
 
 class _TodayWorkoutCard extends StatefulWidget {
-  const _TodayWorkoutCard({required this.appState});
+  const _TodayWorkoutCard({required this.appState, this.isActive = true});
 
   final WorkoutAppState appState;
+  final bool isActive;
 
   @override
   State<_TodayWorkoutCard> createState() => _TodayWorkoutCardState();
 }
 
 class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late Ticker _ticker;
   final ValueNotifier<double> _time = ValueNotifier(0.0);
+  // Shader di-cache sekali saja, tidak dibuat ulang tiap frame agar hemat resource.
+  ui.FragmentShader? _shader;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _shader = wavesProgram?.fragmentShader();
     _ticker = createTicker((elapsed) {
       if (!mounted) return;
       _time.value = elapsed.inMicroseconds / 1000000.0;
-    })..start();
+    });
+    if (widget.isActive) _ticker.start();
+  }
+
+  @override
+  void didUpdateWidget(covariant _TodayWorkoutCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive != oldWidget.isActive) {
+      if (widget.isActive) {
+        _ticker.start();
+      } else {
+        _ticker.stop();
+      }
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      if (widget.isActive) _ticker.start();
+    } else {
+      _ticker.stop();
+    }
   }
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _ticker.dispose();
     _time.dispose();
     super.dispose();
@@ -1101,7 +1135,8 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   child: Lottie.asset(
                     'assets/lottie/gym.json',
                     fit: BoxFit.contain,
-                    alignment: Alignment.bottomRight, 
+                    alignment: Alignment.bottomRight,
+                    animate: widget.isActive,
                   ),
                 ),
               ),
@@ -1223,7 +1258,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
             blendMode: BlendMode.dstIn,
             child: Stack(
               children: [
-                if (wavesProgram != null)
+                if (_shader != null)
                   Positioned.fill(
                     child: LayoutBuilder(
                       builder: (context, constraints) {
@@ -1242,7 +1277,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                                 isComplex: true,
                                 willChange: true,
                                 painter: WavePainter(
-                                  wavesProgram!.fragmentShader(),
+                                  _shader!,
                                   timeValue,
                                   size,
                                   baseColor,
