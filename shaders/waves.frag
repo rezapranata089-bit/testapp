@@ -104,5 +104,13 @@ void main() {
     alpha += (g - 0.5) * uGrainIntensity;
   }
   alpha = clamp(alpha, 0.0, 1.0);
+
+  // Fade vertikal (transparan di atas & bawah, penuh di tengah) dihitung
+  // langsung di shader, menggantikan ShaderMask terpisah di sisi Flutter
+  // sehingga tidak perlu offscreen render pass tambahan tiap frame.
+  float yFrac = fragCoord.y / iResolution.y;
+  float vFade = 1.0 - abs(yFrac - 0.5) * 2.0;
+  alpha *= clamp(vFade, 0.0, 1.0);
+
   fragColor = vec4(col * alpha, alpha);
 }

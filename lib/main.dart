@@ -1329,77 +1329,75 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
       child: Stack(
       children: [
         Positioned.fill(
-          child: ShaderMask(
-            shaderCallback: (bounds) {
-              return const LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  Colors.transparent,
-                  Colors.black,
-                  Colors.transparent,
-                ],
-                // Fade atas dibuat simetris dengan fade bawah agar transisi ke
-                // background di luar card terasa mulus di kedua sisi.
-                stops: [0.0, 0.5, 1.0],
-              ).createShader(bounds);
-            },
-            blendMode: BlendMode.dstIn,
-            child: Stack(
-              children: [
-                if (_shader != null)
-                  Positioned.fill(
-                    child: LayoutBuilder(
-                      builder: (context, constraints) {
-                        final size = Size(constraints.maxWidth, constraints.maxHeight);
-                        final primary = theme.colorScheme.primary;
-                        
-                        final baseColor = Color.lerp(primary, Colors.black, 0.3) ?? Colors.black;
-                        final deepWave = Color.lerp(primary, Colors.black, 0.7) ?? Colors.black;
-                        final brightCrest = Color.lerp(primary, Colors.white, 0.15) ?? primary;
+          child: Stack(
+            children: [
+              if (_shader != null)
+                Positioned.fill(
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final size = Size(constraints.maxWidth, constraints.maxHeight);
+                      final primary = theme.colorScheme.primary;
 
-                        return RepaintBoundary(
-                          child: ValueListenableBuilder<double>(
-                            valueListenable: _time,
-                            builder: (context, timeValue, _) {
-                              return CustomPaint(
-                                isComplex: true,
-                                willChange: true,
-                                painter: WavePainter(
-                                  _shader!,
-                                  timeValue,
-                                  size,
-                                  baseColor,
-                                  deepWave,
-                                  brightCrest,
-                                ),
-                              );
-                            },
-                          ),
-                        );
-                      },
-                    ),
-                  )
-                else
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color.lerp(theme.colorScheme.primary, Colors.black, 0.2)!,
-                            Color.lerp(theme.colorScheme.primary, Colors.black, 0.6)!,
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+                      final baseColor = Color.lerp(primary, Colors.black, 0.3) ?? Colors.black;
+                      final deepWave = Color.lerp(primary, Colors.black, 0.7) ?? Colors.black;
+                      final brightCrest = Color.lerp(primary, Colors.white, 0.15) ?? primary;
+
+                      return RepaintBoundary(
+                        child: ValueListenableBuilder<double>(
+                          valueListenable: _time,
+                          builder: (context, timeValue, _) {
+                            return CustomPaint(
+                              isComplex: true,
+                              willChange: true,
+                              painter: WavePainter(
+                                _shader!,
+                                timeValue,
+                                size,
+                                baseColor,
+                                deepWave,
+                                brightCrest,
+                              ),
+                            );
+                          },
                         ),
+                      );
+                    },
+                  ),
+                )
+              else
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Color.lerp(theme.colorScheme.primary, Colors.black, 0.2)!,
+                          Color.lerp(theme.colorScheme.primary, Colors.black, 0.6)!,
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
                       ),
                     ),
                   ),
-                Positioned.fill(
-                  child: Container(color: Colors.black.withOpacity(0.2)),
                 ),
-              ],
-            ),
+              // Overlay gelap pakai gradient statis (bukan ShaderMask) supaya tetap
+              // fade di tepi atas-bawah tanpa saveLayer/compositing tambahan tiap frame.
+              Positioned.fill(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.transparent,
+                        Color(0x33000000),
+                        Colors.transparent,
+                      ],
+                      stops: [0.0, 0.5, 1.0],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         content,
