@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter/foundation.dart'; // Tambahkan ini untuk cek kIsWeb
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart' as p;
 
@@ -497,16 +498,13 @@ class WorkoutAppState extends ChangeNotifier {
       }
       _syncPhotoCache();
 
-      // Migrasi aman ke SQLite untuk pengguna lama
-      final isFirstTimeSqflite = prefs.getBool('isFirstTimeSqflite') ?? true;
-      if (isFirstTimeSqflite) {
+      if (kIsWeb) {
+        // --- LOGIKA UNTUK WEB (Browser Storage) ---
         final savedHistory = prefs.getString('history');
         if (savedHistory != null) {
           final decoded = jsonDecode(savedHistory) as List<dynamic>;
           history = decoded
-              .map((item) => WorkoutHistory.fromJson(
-                    Map<String, dynamic>.from(item as Map),
-                  ))
+              .map((item) => WorkoutHistory.fromJson(Map<String, dynamic>.from(item as Map)))
               .toList();
         }
 
@@ -514,27 +512,46 @@ class WorkoutAppState extends ChangeNotifier {
         if (savedSchedules != null) {
           final decoded = jsonDecode(savedSchedules) as List<dynamic>;
           schedules = decoded
-              .map((item) => ScheduleItem.fromJson(
-                    Map<String, dynamic>.from(item as Map),
-                  ))
+              .map((item) => ScheduleItem.fromJson(Map<String, dynamic>.from(item as Map)))
               .toList();
         }
+      } else {
+        // --- LOGIKA UNTUK ANDROID / IOS (SQLite) ---
+        final isFirstTimeSqflite = prefs.getBool('isFirstTimeSqflite') ?? true;
+        if (isFirstTimeSqflite) {
+          final savedHistory = prefs.getString('history');
+          if (savedHistory != null) {
+            final decoded = jsonDecode(savedHistory) as List<dynamic>;
+            history = decoded
+                .map((item) => WorkoutHistory.fromJson(Map<String, dynamic>.from(item as Map)))
+                .toList();
+          }
 
-        for (var h in history) {
-          await DatabaseHelper.instance.insertHistory(h);
-        }
-        for (var s in schedules) {
-          await DatabaseHelper.instance.insertSchedule(s);
+          final savedSchedules = prefs.getString('schedules');
+          if (savedSchedules != null) {
+            final decoded = jsonDecode(savedSchedules) as List<dynamic>;
+            schedules = decoded
+                .map((item) => ScheduleItem.fromJson(Map<String, dynamic>.from(item as Map)))
+                .toList();
+          }
+
+          // Pindahkan data lama ke SQLite
+          for (var h in history) {
+            await DatabaseHelper.instance.insertHistory(h);
+          }
+          for (var s in schedules) {
+            await DatabaseHelper.instance.insertSchedule(s);
+          }
+
+          await prefs.setBool('isFirstTimeSqflite', false);
+          // Kita tidak perlu menghapus key 'history' & 'schedules' dari prefs
+          // agar aman kalau aplikasi dijalankan lagi di versi Web suatu saat.
         }
 
-        await prefs.setBool('isFirstTimeSqflite', false);
-        await prefs.remove('history');
-        await prefs.remove('schedules');
+        // Load data langsung dari file database .db (SQLite)
+        history = await DatabaseHelper.instance.getAllHistory();
+        schedules = await DatabaseHelper.instance.getAllSchedules();
       }
-
-      // Load data langsung dari SQLite
-      history = await DatabaseHelper.instance.getAllHistory();
-      schedules = await DatabaseHelper.instance.getAllSchedules();
       
     } catch (_) {
       // Data yang rusak tidak boleh membuat aplikasi gagal dibuka.
@@ -563,7 +580,12 @@ class WorkoutAppState extends ChangeNotifier {
     await prefs.setString('themeMode', themeMode.name);
     await prefs.setInt('accentIndex', accentIndex);
     await prefs.setString('profile', jsonEncode(profile.toJson()));
-    // Note: History & Schedules langsung disimpan ke SQLite di setiap method-nya
+    
+    // Web tidak mendukung SQLite, jadi paksakan simpan ke SharedPreferences
+    if (kIsWeb) {
+      await prefs.setString('history', jsonEncode(history.map((item) => item.toJson()).toList()));
+      await prefs.setString('schedules', jsonEncode(schedules.map((item) => item.toJson()).toList()));
+    }
   }
 
   void setThemeMode(ThemeMode value) {
@@ -593,24 +615,11 @@ class WorkoutAppState extends ChangeNotifier {
     history = [newHistory, ...history];
     notifyListeners();
     
-    unawaited(DatabaseHelper.instance.insertHistory(newHistory));
-  }
-
-  void updateProfile({
-    required String name,
-    required String email,
-    String? photoBytesBase64,
-    bool clearPhoto = false,
-  }) {
-    profile = profile.copyWith(
-      name: name.trim().isEmpty ? profile.name : name.trim(),
-      email: email.trim(),
-      photoBytesBase64: photoBytesBase64,
-      clearPhoto: clearPhoto,
-    );
-    _syncPhotoCache();
-    notifyListeners();
-    unawaited(_persist());
+    if (kIsWeb) {
+      unawaited(_persist());
+    } else {
+      unawaited(DatabaseHelper.instance.insertHistory(newHistory));
+    }
   }
 
   void addSchedule({
@@ -633,7 +642,11 @@ class WorkoutAppState extends ChangeNotifier {
     schedules = [...schedules, newItem];
     notifyListeners();
     
-    unawaited(DatabaseHelper.instance.insertSchedule(newItem));
+    if (kIsWeb) {
+      unawaited(_persist());
+    } else {
+      unawaited(DatabaseHelper.instance.insertSchedule(newItem));
+    }
   }
 
   void toggleSchedule(String id) {
@@ -643,8 +656,12 @@ class WorkoutAppState extends ChangeNotifier {
         .toList();
     notifyListeners();
     
-    final updatedItem = schedules.firstWhere((item) => item.id == id);
-    unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
+    if (kIsWeb) {
+      unawaited(_persist());
+    } else {
+      final updatedItem = schedules.firstWhere((item) => item.id == id);
+      unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
+    }
   }
 
   void setScheduleReminder(String id, bool enabled) {
@@ -655,8 +672,66 @@ class WorkoutAppState extends ChangeNotifier {
         .toList();
     notifyListeners();
     
-    final updatedItem = schedules.firstWhere((item) => item.id == id);
-    unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
+    if (kIsWeb) {
+      unawaited(_persist());
+    } else {
+      final updatedItem = schedules.firstWhere((item) => item.id == id);
+      unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
+    }
+  }
+
+  void setAllRemindersEnabled(bool enabled) {
+    schedules = schedules
+        .map((item) => item.copyWith(reminderEnabled: enabled))
+        .toList();
+    notifyListeners();
+    
+    if (kIsWeb) {
+      unawaited(_persist());
+    } else {
+      unawaited(DatabaseHelper.instance.updateAllSchedulesReminder(enabled));
+    }
+  }
+
+  void removeSchedule(String id) {
+    schedules = schedules.where((item) => item.id != id).toList();
+    notifyListeners();
+    
+    if (kIsWeb) {
+      unawaited(_persist());
+    } else {
+      unawaited(DatabaseHelper.instance.deleteSchedule(id));
+    }
+  }
+
+  void updateSchedule(
+    String id, {
+    required String day,
+    required String time,
+    required String workout,
+    required bool reminderEnabled,
+    required int reminderMinutes,
+  }) {
+    schedules = schedules.map((item) {
+      if (item.id == id) {
+        return item.copyWith(
+          day: day,
+          time: time,
+          workout: workout,
+          reminderEnabled: reminderEnabled,
+          reminderMinutes: reminderMinutes,
+        );
+      }
+      return item;
+    }).toList();
+    notifyListeners();
+    
+    if (kIsWeb) {
+      unawaited(_persist());
+    } else {
+      final updatedItem = schedules.firstWhere((item) => item.id == id);
+      unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
+    }
   }
 
   void setAllRemindersEnabled(bool enabled) {
