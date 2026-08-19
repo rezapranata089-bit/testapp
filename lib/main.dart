@@ -1129,7 +1129,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
   late Ticker _ticker;
   final ValueNotifier<double> _time = ValueNotifier(0.0);
   // Menahan frame terakhir yang sudah diproses agar ticker bisa dibatasi
-  // ke ~30fps, bukan 60fps, untuk mengurangi beban repaint wave.
+  // ke ~25fps, bukan 60fps, untuk mengurangi beban repaint wave.
   int _lastFrameMicros = 0;
   // Shader di-cache sekali saja, tidak dibuat ulang tiap frame agar hemat resource.
   ui.FragmentShader? _shader;
@@ -1141,14 +1141,27 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     _shader = wavesProgram?.fragmentShader();
     _ticker = createTicker((elapsed) {
       if (!mounted) return;
-      // Batasi update ke ~30fps agar repaint + composite wave (yang
-      // dibungkus ShaderMask) tidak berjalan di setiap frame 60fps.
+      // Batasi update ke ~25fps agar repaint + composite wave tidak
+      // berjalan di setiap frame 60fps, sehingga terasa lebih smooth
+      // dan hemat resource.
       final micros = elapsed.inMicroseconds;
-      if (micros - _lastFrameMicros < 33000) return;
+      if (micros - _lastFrameMicros < 40000) return;
       _lastFrameMicros = micros;
       _time.value = micros / 1000000.0;
     });
-    if (widget.isActive) _ticker.start();
+    if (widget.isActive) _startTicker();
+  }
+
+  // Ticker.elapsed selalu dihitung ulang dari 0 setiap kali start()
+  // dipanggil, sedangkan _lastFrameMicros masih menyimpan nilai lama dari
+  // sesi sebelumnya (bisa sangat besar). Tanpa direset, elapsed yang baru
+  // butuh waktu sangat lama untuk "menyusul" nilai lama tsb, sehingga
+  // _time.value tidak pernah ter-update -> wave terlihat mati/freeze
+  // setelah berpindah tab lalu kembali. Reset di sini memastikan animasi
+  // langsung berjalan lagi begitu tab aktif.
+  void _startTicker() {
+    _lastFrameMicros = 0;
+    _ticker.start();
   }
 
   @override
@@ -1156,7 +1169,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     super.didUpdateWidget(oldWidget);
     if (widget.isActive != oldWidget.isActive) {
       if (widget.isActive) {
-        _ticker.start();
+        _startTicker();
       } else {
         _ticker.stop();
       }
@@ -1166,7 +1179,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      if (widget.isActive) _ticker.start();
+      if (widget.isActive) _startTicker();
     } else {
       _ticker.stop();
     }
