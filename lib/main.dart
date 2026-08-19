@@ -2053,20 +2053,7 @@ class SchedulePage extends StatelessWidget {
           if (appState.schedules.isEmpty)
             const _ScheduleEmptyState()
           else
-            ...appState.schedules.map(
-              (schedule) => Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: _ScheduleTile(
-                  schedule: schedule,
-                  onToggle: () => appState.toggleSchedule(schedule.id),
-                  onReminderToggle: () => appState.setScheduleReminder(
-                    schedule.id,
-                    !schedule.reminderEnabled,
-                  ),
-                  onDelete: () => appState.removeSchedule(schedule.id),
-                ),
-              ),
-            ),
+            _ScheduleList(appState: appState),
           const SizedBox(height: 14),
           Card(
             child: Padding(
@@ -2305,14 +2292,73 @@ class _WeekStrip extends StatelessWidget {
   }
 }
 
+// Menyimpan progress swipe kartu yang sedang di-drag beserta index-nya,
+// dibagikan lewat ValueNotifier agar kartu tetangga bisa ikut bereaksi
+// (efek "tertarik") secara real-time saat salah satu kartu di-swipe.
+class _ScheduleDragState {
+  const _ScheduleDragState({required this.index, required this.progress});
+
+  final int index;
+  final double progress;
+}
+
+// Membangun daftar _ScheduleTile sekaligus memegang ValueNotifier yang
+// dipakai bersama untuk efek rubber-band antar kartu.
+class _ScheduleList extends StatefulWidget {
+  const _ScheduleList({required this.appState});
+
+  final WorkoutAppState appState;
+
+  @override
+  State<_ScheduleList> createState() => _ScheduleListState();
+}
+
+class _ScheduleListState extends State<_ScheduleList> {
+  final ValueNotifier<_ScheduleDragState?> _dragNotifier = ValueNotifier(null);
+
+  @override
+  void dispose() {
+    _dragNotifier.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final schedules = widget.appState.schedules;
+    return Column(
+      children: [
+        for (var i = 0; i < schedules.length; i++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: _ScheduleTile(
+              index: i,
+              dragNotifier: _dragNotifier,
+              schedule: schedules[i],
+              onToggle: () => widget.appState.toggleSchedule(schedules[i].id),
+              onReminderToggle: () => widget.appState.setScheduleReminder(
+                schedules[i].id,
+                !schedules[i].reminderEnabled,
+              ),
+              onDelete: () => widget.appState.removeSchedule(schedules[i].id),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
 class _ScheduleTile extends StatefulWidget {
   const _ScheduleTile({
+    required this.index,
+    required this.dragNotifier,
     required this.schedule,
     required this.onToggle,
     required this.onReminderToggle,
     required this.onDelete,
   });
 
+  final int index;
+  final ValueNotifier<_ScheduleDragState?> dragNotifier;
   final ScheduleItem schedule;
   final VoidCallback onToggle;
   final VoidCallback onReminderToggle;
@@ -2401,42 +2447,78 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
     // Bungkus dengan SizeTransition agar bisa dianimasikan menyusut
     return SizeTransition(
       sizeFactor: _sizeAnimation,
-      child: Card(
-        clipBehavior: Clip.antiAlias,
-        child: Dismissible(
-          key: ValueKey(widget.schedule.id),
-          direction: DismissDirection.endToStart,
-          onUpdate: (details) {
-            if (_swipeProgress != details.progress && mounted) {
-              setState(() => _swipeProgress = details.progress);
-            }
+      // Padding horizontal negatif "membatalkan" padding 20px milik
+      // ListView induk, sehingga Dismissible melebar penuh sampai pinggir
+      // layar -- background delete jadi full-bleed, tidak ter-mask
+      // mengikuti bentuk rounded card.
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: -20),
+        child: ValueListenableBuilder<_ScheduleDragState?>(
+          valueListenable: widget.dragNotifier,
+          builder: (context, dragState, dismissibleChild) {
+            // Kartu tetangga (persis 1 index di atas/bawah) ikut "tertarik"
+            // mengikuti arah swipe kartu yang sedang digeser, memberi efek
+            // fluid seperti rubber-band. Kartu yang sedang digeser sendiri
+            // tidak diberi efek ini karena sudah bergerak lewat Dismissible.
+            final isNeighbor = dragState != null &&
+                (dragState.index - widget.index).abs() == 1;
+            final pull = isNeighbor ? dragState!.progress : 0.0;
+            return Transform.translate(
+              offset: Offset(-pull * 14.0, 0),
+              child: Transform.scale(
+                scaleY: 1 - (pull * 0.015),
+                child: Opacity(
+                  opacity: 1 - (pull * 0.12),
+                  child: dismissibleChild,
+                ),
+              ),
+            );
           },
-          confirmDismiss: (direction) async {
-            HapticFeedback.mediumImpact();
-            
-            // 1. Munculkan popup dialog tanpa memblokir baris berikutnya
-            _handleDeleteConfirmation(theme);
-            
-            // 2. Langsung kembalikan "false" ke sistem Dismissible,
-            // sehingga card otomatis bergeser kembali ke awal dengan animasi fluid.
-            return false;
-          },
-          onDismissed: (_) {
-            // onDismissed bawaan tidak akan pernah jalan karena kita return false.
-            // Penghapusan dialihkan sepenuhnya ke fungsi _handleDeleteConfirmation
-          },
-          background: Container(
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.only(right: 22),
-            color: bgColor,
-            child: Icon(
-              Icons.delete_outline_rounded,
-              color: iconColor,
+          child: Dismissible(
+            key: ValueKey(widget.schedule.id),
+            direction: DismissDirection.endToStart,
+            onUpdate: (details) {
+              if (_swipeProgress != details.progress && mounted) {
+                setState(() => _swipeProgress = details.progress);
+              }
+              widget.dragNotifier.value = _ScheduleDragState(
+                index: widget.index,
+                progress: details.progress,
+              );
+            },
+            confirmDismiss: (direction) async {
+              HapticFeedback.mediumImpact();
+
+              // 1. Munculkan popup dialog tanpa memblokir baris berikutnya
+              _handleDeleteConfirmation(theme);
+
+              // 2. Langsung kembalikan "false" ke sistem Dismissible,
+              // sehingga card otomatis bergeser kembali ke awal dengan animasi fluid.
+              return false;
+            },
+            onDismissed: (_) {
+              // onDismissed bawaan tidak akan pernah jalan karena kita return false.
+              // Penghapusan dialihkan sepenuhnya ke fungsi _handleDeleteConfirmation
+            },
+            background: Container(
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.only(right: 22),
+              color: bgColor,
+              child: Icon(
+                Icons.delete_outline_rounded,
+                color: iconColor,
+              ),
             ),
-          ),
-          child: Material(
-            color: theme.cardTheme.color ?? theme.colorScheme.surface,
-            child: ListTile(
+            child: Padding(
+              // Mengembalikan 20px yang tadi "dibatalkan" di atas, khusus
+              // untuk lapisan kartu visualnya saja -- tampilan saat diam
+              // (tidak sedang di-swipe) jadi identik seperti sebelumnya.
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Card(
+                clipBehavior: Clip.antiAlias,
+                child: Material(
+                  color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                  child: ListTile(
               contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
               leading: CircleAvatar(
                 backgroundColor: widget.schedule.active
@@ -2488,7 +2570,10 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
           ),
         ),
       ),
-    );
+    ),
+  ),
+),
+      );
   }
 }
 
