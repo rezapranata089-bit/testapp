@@ -1,0 +1,10 @@
+PENYEBAB ERROR:
+Meskipun file `key.properties` sudah dibuat, file `android/app/build.gradle` bawaan proyek Anda masih menggunakan pengaturan bawaan (default), yaitu mencari `debug.keystore` untuk melakukan build versi Release.
+
+SOLUSI:
+Saya menambahkan step baru di GitHub Actions yang menggunakan script Python untuk me-modifikasi (patch) file `android/app/build.gradle` Anda secara otomatis saat build CI berjalan.
+Step ini akan menyuntikkan konfigurasi keystore ke file `build.gradle` dan mengubah target signing dari `debug` menjadi `release`.
+
+Dengan begini, Anda tidak perlu repot mencari dan mengedit file `build.gradle` Anda secara manual, dan proses build akan langsung sukses menggunakan keystore yang sudah disiapkan sebelumnya! 
+
+Silakan commit dan push perubahan pada file YAML ini.
