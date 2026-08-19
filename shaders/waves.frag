@@ -108,8 +108,11 @@ void main() {
   // Fade vertikal dihitung langsung di shader. Pakai kurva sinus (bukan
   // fungsi segitiga/abs linear) karena turunan sinus mulus di puncaknya,
   // sehingga tidak muncul garis Mach band di titik tengah card.
+  // Dipangkatkan (>1) agar area dekat tepi atas/bawah naik lebih lambat,
+  // memperluas zona transisi sehingga blend ke background terasa lebih
+  // sempurna/tidak terpotong tegas.
   float yFrac = clamp(fragCoord.y / iResolution.y, 0.0, 1.0);
-  float vFade = sin(3.14159265 * yFrac);
+  float vFade = pow(sin(3.14159265 * yFrac), 1.8);
   alpha *= vFade;
 
   fragColor = vec4(col * alpha, alpha);

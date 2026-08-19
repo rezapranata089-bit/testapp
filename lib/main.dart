@@ -1599,15 +1599,18 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                       0.875,
                       1.0,
                     ];
+                    // Nilai dipangkatkan 1.8 (sama seperti fade di shader
+                    // wave) agar area dekat tepi lebih transparan lebih
+                    // lama, membuat overlay ikut blend halus ke background.
                     const sineValues = [
                       0.0,
-                      0.3827,
-                      0.7071,
-                      0.9239,
+                      0.2354,
+                      0.6067,
+                      0.8656,
                       1.0,
-                      0.9239,
-                      0.7071,
-                      0.3827,
+                      0.8656,
+                      0.6067,
+                      0.2354,
                       0.0,
                     ];
                     return Container(
