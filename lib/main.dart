@@ -1754,18 +1754,25 @@ class _ScrollRevealItem extends StatefulWidget {
 
 class _ScrollRevealItemState extends State<_ScrollRevealItem>
     with SingleTickerProviderStateMixin {
+  // Durasi dinaikkan agar efek bounce (overshoot lalu memantul balik)
+  // punya cukup waktu untuk terasa fluid, bukan terpotong terlalu cepat.
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 550),
+    duration: const Duration(milliseconds: 750),
   );
   late final Animation<double> _fade = CurvedAnimation(
     parent: _controller,
-    curve: Curves.easeOut,
+    // Fade selesai lebih cepat (interval 0.0-0.6) daripada slide/bounce,
+    // supaya card sudah terlihat penuh sebelum efek bounce-nya selesai --
+    // meniru cara Play Store/Material motion memisah opacity & posisi.
+    curve: const Interval(0.0, 0.6, curve: Curves.easeOut),
   );
+  // Card index genap slide masuk dari kiri, index ganjil dari kanan,
+  // sehingga barisan card terlihat silang-silang (zig-zag) saat muncul.
   late final Animation<Offset> _slide = Tween<Offset>(
-    begin: const Offset(0, 0.12),
+    begin: Offset(widget.staggerIndex.isEven ? -0.45 : 0.45, 0),
     end: Offset.zero,
-  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutBack));
 
   ScrollPosition? _scrollPosition;
   bool _revealed = false;
