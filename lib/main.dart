@@ -2064,59 +2064,60 @@ class _TiltCardState extends State<_TiltCard> {
           onPointerUp: _onPointerUpCancel,
           onPointerCancel: _onPointerUpCancel,
           child: TweenAnimationBuilder(
-          duration: Duration(milliseconds: _isActive ? 150 : 400),
-          curve: _isActive ? Curves.easeOutCubic : Curves.easeOutBack,
-          tween: Tween<Offset>(begin: Offset.zero, end: Offset(_tiltX, _tiltY)),
-          builder: (context, Offset tilt, child) {
-            final matrix = Matrix4.identity()
-              ..setEntry(3, 2, 0.001) // perspective
-              ..rotateX(tilt.dx * 3.14159 / 180)
-              ..rotateY(tilt.dy * 3.14159 / 180);
+            duration: Duration(milliseconds: _isActive ? 150 : 400),
+            curve: _isActive ? Curves.easeOutCubic : Curves.easeOutBack,
+            tween: Tween<Offset>(begin: Offset.zero, end: Offset(_tiltX, _tiltY)),
+            builder: (context, Offset tilt, child) {
+              final matrix = Matrix4.identity()
+                ..setEntry(3, 2, 0.001) // perspective
+                ..rotateX(tilt.dx * 3.14159 / 180)
+                ..rotateY(tilt.dy * 3.14159 / 180);
 
-            return Transform(
-              transform: matrix,
-              alignment: Alignment.center,
-              child: child,
-            );
-          },
-          child: Stack(
-            clipBehavior: Clip.none,
-            fit: StackFit.passthrough,
-            children: [
-              widget.child,
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(widget.borderRadius),
-                    child: AnimatedOpacity(
-                      // Cahaya Glare hanya tipis saat ditekan, tapi jadi terang benderang setelah hold 1 detik
-                      opacity: _isInteractive ? 1.0 : (_isActive ? 0.15 : 0.0),
-                      duration: const Duration(milliseconds: 300),
-                      child: TweenAnimationBuilder(
-                        duration: Duration(milliseconds: _isActive ? 100 : 300),
-                        tween: Tween<Offset>(begin: const Offset(0.5, 0.5), end: Offset(_glareX, _glareY)),
-                        builder: (context, Offset glarePos, _) {
-                          return Container(
-                            decoration: BoxDecoration(
-                              gradient: RadialGradient(
-                                center: FractionalOffset(glarePos.dx, glarePos.dy),
-                                radius: 1.5,
-                                colors: [
-                                  Colors.white.withOpacity(0.32),
-                                  Colors.white.withOpacity(0.06),
-                                  Colors.transparent,
-                                ],
-                                stops: const [0.0, 0.5, 1.0],
+              return Transform(
+                transform: matrix,
+                alignment: Alignment.center,
+                child: child,
+              );
+            },
+            child: Stack(
+              clipBehavior: Clip.none,
+              fit: StackFit.passthrough,
+              children: [
+                widget.child,
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(widget.borderRadius),
+                      child: AnimatedOpacity(
+                        // Cahaya Glare hanya tipis saat ditekan, tapi jadi terang benderang setelah hold 1 detik
+                        opacity: _isInteractive ? 1.0 : (_isActive ? 0.15 : 0.0),
+                        duration: const Duration(milliseconds: 300),
+                        child: TweenAnimationBuilder(
+                          duration: Duration(milliseconds: _isActive ? 100 : 300),
+                          tween: Tween<Offset>(begin: const Offset(0.5, 0.5), end: Offset(_glareX, _glareY)),
+                          builder: (context, Offset glarePos, _) {
+                            return Container(
+                              decoration: BoxDecoration(
+                                gradient: RadialGradient(
+                                  center: FractionalOffset(glarePos.dx, glarePos.dy),
+                                  radius: 1.5,
+                                  colors: [
+                                    Colors.white.withOpacity(0.32),
+                                    Colors.white.withOpacity(0.06),
+                                    Colors.transparent,
+                                  ],
+                                  stops: const [0.0, 0.5, 1.0],
+                                ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
