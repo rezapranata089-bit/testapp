@@ -105,12 +105,12 @@ void main() {
   }
   alpha = clamp(alpha, 0.0, 1.0);
 
-  // Fade vertikal (transparan di atas & bawah, penuh di tengah) dihitung
-  // langsung di shader, menggantikan ShaderMask terpisah di sisi Flutter
-  // sehingga tidak perlu offscreen render pass tambahan tiap frame.
-  float yFrac = fragCoord.y / iResolution.y;
-  float vFade = 1.0 - abs(yFrac - 0.5) * 2.0;
-  alpha *= clamp(vFade, 0.0, 1.0);
+  // Fade vertikal dihitung langsung di shader. Pakai kurva sinus (bukan
+  // fungsi segitiga/abs linear) karena turunan sinus mulus di puncaknya,
+  // sehingga tidak muncul garis Mach band di titik tengah card.
+  float yFrac = clamp(fragCoord.y / iResolution.y, 0.0, 1.0);
+  float vFade = sin(3.14159265 * yFrac);
+  alpha *= vFade;
 
   fragColor = vec4(col * alpha, alpha);
 }

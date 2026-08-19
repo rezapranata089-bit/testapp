@@ -1577,27 +1577,53 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                     ),
                   ),
                 ),
-              // Overlay gelap pakai gradient statis (bukan ShaderMask) supaya tetap
-              // fade di tepi atas-bawah tanpa saveLayer/compositing tambahan tiap frame.
-              // Mid-tone dibuat lebih gelap khusus di mode terang, karena warna wave
-              // di light theme cenderung lebih terang sehingga teks putih di atasnya
-              // jadi kurang kontras/kurang terlihat.
+              // Overlay gelap dengan gradient multi-stop mengikuti kurva sinus
+              // (bukan 3-stop berbentuk V). Gradient V-shape menyebabkan Mach
+              // band -- garis horizontal tipis yang terlihat jelas walau nilai
+              // warnanya sendiri kontinu, karena kemiringannya patah tajam di
+              // titik tengah. Kurva sinus mulus di puncaknya sehingga garis
+              // itu tidak muncul lagi.
               Positioned.fill(
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      colors: [
-                        Colors.transparent,
-                        theme.brightness == Brightness.light
-                            ? const Color(0x73000000)
-                            : const Color(0x33000000),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.5, 1.0],
-                    ),
-                  ),
+                child: Builder(
+                  builder: (context) {
+                    final peakOpacity =
+                        theme.brightness == Brightness.light ? 0.45 : 0.2;
+                    const sineStops = [
+                      0.0,
+                      0.125,
+                      0.25,
+                      0.375,
+                      0.5,
+                      0.625,
+                      0.75,
+                      0.875,
+                      1.0,
+                    ];
+                    const sineValues = [
+                      0.0,
+                      0.3827,
+                      0.7071,
+                      0.9239,
+                      1.0,
+                      0.9239,
+                      0.7071,
+                      0.3827,
+                      0.0,
+                    ];
+                    return Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          stops: sineStops,
+                          colors: [
+                            for (final v in sineValues)
+                              Colors.black.withOpacity(v * peakOpacity),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ],
