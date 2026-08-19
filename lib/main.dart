@@ -2375,21 +2375,23 @@ class _DayStripItemState extends State<_DayStripItem> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     
-    // Ukuran dinamis: pill tengah membesar, pinggir semakin mengecil untuk efek melengkung
-    final double width = 48.0 - (widget.distance * 3.0);
-    final double height = 86.0 - (widget.distance * 8.0);
+    // Ukuran diperkecil agar jarak (gap) antar pill lebih lega di layar yang sempit
+    final double width = 44.0 - (widget.distance * 2.5);
+    final double height = 76.0 - (widget.distance * 6.0);
 
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _isPressed = true),
-      onTapUp: (_) {
+    // Menggunakan Listener agar deteksi sentuhan instan dan tidak dibatalkan oleh scroll ListView
+    return Listener(
+      behavior: HitTestBehavior.opaque,
+      onPointerDown: (_) => setState(() => _isPressed = true),
+      onPointerUp: (_) {
         setState(() => _isPressed = false);
         _handleTap();
       },
-      onTapCancel: () => setState(() => _isPressed = false),
+      onPointerCancel: (_) => setState(() => _isPressed = false),
       child: AnimatedScale(
-        scale: _isPressed ? 0.75 : 1.0,
-        // Durasi diperlama dengan curve elasticOut saat dilepas untuk memberikan efek fluid/membal
-        duration: Duration(milliseconds: _isPressed ? 150 : 500),
+        scale: _isPressed ? 0.8 : 1.0,
+        // Waktu tekan lebih instan, waktu lepas fluid/membal
+        duration: Duration(milliseconds: _isPressed ? 100 : 600),
         curve: _isPressed ? Curves.easeOutQuad : Curves.elasticOut,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 300),
@@ -2432,7 +2434,7 @@ class _DayStripItemState extends State<_DayStripItem> {
                       ? theme.colorScheme.onPrimary
                       : theme.colorScheme.onSurface,
                   fontWeight: FontWeight.w700,
-                  fontSize: 16.0 - (widget.distance * 0.8), // Teks sedikit menyesuaikan ukuran pill
+                  fontSize: 15.0 - (widget.distance * 0.8), // Ukuran teks disesuaikan dengan pill yang lebih kecil
                 ),
               ),
               if (widget.schedules.isNotEmpty) ...[
