@@ -1792,20 +1792,34 @@ class _ScrollRevealItemState extends State<_ScrollRevealItem>
   }
 
   void _checkVisibility() {
-    if (_revealed || !mounted) return;
+    if (!mounted) return;
     final renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.attached) return;
     final viewportHeight = MediaQuery.of(context).size.height;
     final position = renderObject.localToGlobal(Offset.zero);
+    final itemHeight = renderObject.size.height;
     // Card dianggap "masuk layar" begitu sisi atasnya sudah berada dalam
     // area layar (dengan sedikit margin agar animasi mulai terasa lebih
-    // awal, sebelum card benar-benar mepet ke bawah layar).
-    if (position.dy < viewportHeight * 0.92) {
+    // awal), dan belum sepenuhnya lewat di sisi atas.
+    final isVisible = position.dy < viewportHeight * 0.92 &&
+        (position.dy + itemHeight) > 0;
+
+    if (!_revealed && isVisible) {
       _revealed = true;
       final delay = Duration(milliseconds: 70 * widget.staggerIndex);
       Future.delayed(delay, () {
-        if (mounted) _controller.forward();
+        // Cek ulang _revealed di sini: kalau selama delay card sudah
+        // ter-scroll keluar layar lagi (reset di bawah), batalkan supaya
+        // tidak forward() untuk state yang sudah tidak relevan lagi.
+        if (mounted && _revealed) _controller.forward(from: 0);
       });
+    } else if (_revealed && !isVisible) {
+      // Card sudah keluar area layar sepenuhnya -- reset agar animasi
+      // fade+slide+bounce-nya bisa terulang lagi saat di-scroll masuk ke
+      // layar berikutnya (termasuk saat tab dikunjungi ulang, karena
+      // AutomaticKeepAlive membuat state ini tidak pernah dibuang).
+      _revealed = false;
+      _controller.value = 0;
     }
   }
 
