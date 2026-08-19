@@ -622,6 +622,23 @@ class WorkoutAppState extends ChangeNotifier {
     }
   }
 
+  void updateProfile({
+    required String name,
+    required String email,
+    String? photoBytesBase64,
+    bool clearPhoto = false,
+  }) {
+    profile = profile.copyWith(
+      name: name.trim().isEmpty ? profile.name : name.trim(),
+      email: email.trim(),
+      photoBytesBase64: photoBytesBase64,
+      clearPhoto: clearPhoto,
+    );
+    _syncPhotoCache();
+    notifyListeners();
+    unawaited(_persist());
+  }
+
   void addSchedule({
     required String day,
     required String time,
@@ -732,48 +749,6 @@ class WorkoutAppState extends ChangeNotifier {
       final updatedItem = schedules.firstWhere((item) => item.id == id);
       unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
     }
-  }
-
-  void setAllRemindersEnabled(bool enabled) {
-    schedules = schedules
-        .map((item) => item.copyWith(reminderEnabled: enabled))
-        .toList();
-    notifyListeners();
-    
-    unawaited(DatabaseHelper.instance.updateAllSchedulesReminder(enabled));
-  }
-
-  void removeSchedule(String id) {
-    schedules = schedules.where((item) => item.id != id).toList();
-    notifyListeners();
-    
-    unawaited(DatabaseHelper.instance.deleteSchedule(id));
-  }
-
-  void updateSchedule(
-    String id, {
-    required String day,
-    required String time,
-    required String workout,
-    required bool reminderEnabled,
-    required int reminderMinutes,
-  }) {
-    schedules = schedules.map((item) {
-      if (item.id == id) {
-        return item.copyWith(
-          day: day,
-          time: time,
-          workout: workout,
-          reminderEnabled: reminderEnabled,
-          reminderMinutes: reminderMinutes,
-        );
-      }
-      return item;
-    }).toList();
-    notifyListeners();
-    
-    final updatedItem = schedules.firstWhere((item) => item.id == id);
-    unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
   }
 }
 
