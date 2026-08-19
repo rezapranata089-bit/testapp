@@ -942,7 +942,8 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final pages = [
       _KeepAlivePage(
-        isActive: selectedIndex == 0,
+        tabIndex: 0,
+        pageController: _pageController,
         child: HomePage(
           appState: widget.appState,
           isActive: selectedIndex == 0,
@@ -950,15 +951,18 @@ class _MainShellState extends State<MainShell> {
         ),
       ),
       _KeepAlivePage(
-        isActive: selectedIndex == 1,
+        tabIndex: 1,
+        pageController: _pageController,
         child: SchedulePage(appState: widget.appState),
       ),
       _KeepAlivePage(
-        isActive: selectedIndex == 2,
+        tabIndex: 2,
+        pageController: _pageController,
         child: ProgressPage(appState: widget.appState),
       ),
       _KeepAlivePage(
-        isActive: selectedIndex == 3,
+        tabIndex: 3,
+        pageController: _pageController,
         child: ProfilePage(appState: widget.appState),
       ),
     ];
@@ -1208,11 +1212,13 @@ class _FluidPillIndicatorState extends State<_FluidPillIndicator>
 class _KeepAlivePage extends StatefulWidget {
   const _KeepAlivePage({
     required this.child,
-    required this.isActive,
+    required this.tabIndex,
+    required this.pageController,
   });
 
   final Widget child;
-  final bool isActive;
+  final int tabIndex;
+  final PageController pageController;
 
   @override
   State<_KeepAlivePage> createState() => _KeepAlivePageState();
@@ -1221,19 +1227,50 @@ class _KeepAlivePage extends StatefulWidget {
 class _KeepAlivePageState extends State<_KeepAlivePage>
     with AutomaticKeepAliveClientMixin {
   Key _childKey = UniqueKey();
+  bool _isOffscreen = false;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.pageController.addListener(_onScroll);
+  }
 
   @override
   void didUpdateWidget(covariant _KeepAlivePage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.isActive && !widget.isActive) {
-      // Tunggu animasi transisi tab selesai (~350ms), lalu reset state child
-      // secara background. Ini me-rebuild ListView, kembalikan scroll ke top,
-      // & reset animasi stagger tanpa terlihat blink oleh pengguna.
-      Future.delayed(const Duration(milliseconds: 400), () {
-        if (mounted && !widget.isActive) {
-          setState(() => _childKey = UniqueKey());
-        }
+    if (oldWidget.pageController != widget.pageController) {
+      oldWidget.pageController.removeListener(_onScroll);
+      widget.pageController.addListener(_onScroll);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.pageController.removeListener(_onScroll);
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (!widget.pageController.hasClients) return;
+    final page = widget.pageController.page;
+    if (page == null) return;
+
+    // Hitung jarak dari posisi scroll PageView ke indeks tab ini.
+    // Jika jaraknya >= 0.999 (mendekati 1), berarti tab ini sudah sepenuhnya
+    // keluar dari layar akibat gestur manual maupun klik navbar.
+    final distance = (page - widget.tabIndex).abs();
+    final isNowOffscreen = distance >= 0.999;
+
+    if (isNowOffscreen && !_isOffscreen) {
+      _isOffscreen = true;
+      // Tab sudah tidak terlihat sama sekali (di-background).
+      // Aman untuk mereset seluruh state (scroll ke top & reset stagger)
+      // tanpa membuat layar pengguna berkedip (blink).
+      setState(() {
+        _childKey = UniqueKey();
       });
+    } else if (!isNowOffscreen && _isOffscreen) {
+      _isOffscreen = false;
     }
   }
 
