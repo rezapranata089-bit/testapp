@@ -1235,7 +1235,15 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                         ? 'LATIHAN SELESAI'
                         : 'LATIHAN HARI INI',
                     style: theme.textTheme.labelMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.9),
+                      // Warna dicampur ke arah putih agar tetap kontras di atas
+                      // background wave yang gelap, tapi tetap terasa mengikuti
+                      // warna aksen yang dipilih pengguna.
+                      color: Color.lerp(
+                            widget.appState.accentColor,
+                            Colors.white,
+                            0.55,
+                          ) ??
+                          Colors.white,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
                       shadows: [
