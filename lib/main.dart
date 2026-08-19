@@ -2432,43 +2432,11 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
 
     return SizeTransition(
       sizeFactor: _sizeAnimation,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: -20),
-        child: ValueListenableBuilder<_ScheduleDragState?>(
-          valueListenable: widget.dragNotifier,
-          builder: (context, dragState, dismissibleChild) {
-            final isNeighbor = dragState != null && (dragState.index - widget.index).abs() == 1;
-            final pull = isNeighbor ? dragState!.progress : 0.0;
-            return Transform.translate(
-              offset: Offset(-pull * 14.0, 0),
-              child: Transform.scale(
-                scaleY: 1 - (pull * 0.015),
-                child: Opacity(
-                  opacity: 1 - (pull * 0.12),
-                  child: dismissibleChild,
-                ),
-              ),
-            );
-          },
-          child: Dismissible(
-            key: ValueKey(widget.schedule.id),
-            direction: DismissDirection.endToStart,
-            onUpdate: (details) {
-              if (_swipeProgress != details.progress && mounted) {
-                setState(() => _swipeProgress = details.progress);
-              }
-              widget.dragNotifier.value = _ScheduleDragState(
-                index: widget.index,
-                progress: details.progress,
-              );
-            },
-            confirmDismiss: (direction) async {
-              HapticFeedback.mediumImpact();
-              _handleDeleteConfirmation(theme);
-              return false;
-            },
-            background: Container(
-              alignment: Alignment.centerRight,
+      child: Stack(
+        children: [
+          // CARD DELETE (BELAKANG) - Bersifat statis (stay in place)
+          if (_swipeProgress > 0)
+            Positioned.fill(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
@@ -2482,64 +2450,105 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
                 ),
               ),
             ),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Card(
-                clipBehavior: Clip.antiAlias,
-                child: Material(
-                  color: theme.cardTheme.color ?? theme.colorScheme.surface,
-                  child: ListTile(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    leading: CircleAvatar(
-                      backgroundColor: widget.schedule.active
-                          ? theme.colorScheme.primaryContainer
-                          : theme.colorScheme.surfaceContainerHighest,
-                      child: Icon(
-                        Icons.fitness_center_rounded,
-                        color: widget.schedule.active
-                            ? theme.colorScheme.onPrimaryContainer
-                            : theme.colorScheme.onSurfaceVariant,
-                        size: 20,
-                      ),
+
+          // CARD UTAMA (DEPAN) - Dibungkus Dismissible untuk menangani gerakan swipe
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: -20),
+            child: ValueListenableBuilder<_ScheduleDragState?>(
+              valueListenable: widget.dragNotifier,
+              builder: (context, dragState, dismissibleChild) {
+                final isNeighbor = dragState != null && (dragState.index - widget.index).abs() == 1;
+                final pull = isNeighbor ? dragState!.progress : 0.0;
+                return Transform.translate(
+                  offset: Offset(-pull * 14.0, 0),
+                  child: Transform.scale(
+                    scaleY: 1 - (pull * 0.015),
+                    child: Opacity(
+                      opacity: 1 - (pull * 0.12),
+                      child: dismissibleChild,
                     ),
-                    title: Text(
-                      widget.schedule.workout,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                    subtitle: Text(
-                      '${widget.schedule.day} • ${widget.schedule.time}\n'
-                      '${widget.schedule.reminderEnabled ? 'Reminder ${widget.schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
-                    ),
-                    isThreeLine: true,
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        Switch(
-                          value: widget.schedule.active,
-                          onChanged: (_) => widget.onToggle(),
-                        ),
-                        IconButton(
-                          visualDensity: VisualDensity.compact,
-                          tooltip: widget.schedule.reminderEnabled ? 'Matikan reminder' : 'Nyalakan reminder',
-                          onPressed: widget.onReminderToggle,
-                          icon: Icon(
-                            widget.schedule.reminderEnabled
-                                ? Icons.notifications_active_rounded
-                                : Icons.notifications_off_outlined,
-                            color: widget.schedule.reminderEnabled
-                                ? theme.colorScheme.primary
+                  ),
+                );
+              },
+              child: Dismissible(
+                key: ValueKey(widget.schedule.id),
+                direction: DismissDirection.endToStart,
+                // Hilangkan background internal Dismissible agar tidak terjadi clipping reveal bertahap
+                background: const SizedBox.shrink(),
+                onUpdate: (details) {
+                  if (_swipeProgress != details.progress && mounted) {
+                    setState(() => _swipeProgress = details.progress);
+                  }
+                  widget.dragNotifier.value = _ScheduleDragState(
+                    index: widget.index,
+                    progress: details.progress,
+                  );
+                },
+                confirmDismiss: (direction) async {
+                  HapticFeedback.mediumImpact();
+                  _handleDeleteConfirmation(theme);
+                  return false;
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Card(
+                    clipBehavior: Clip.antiAlias,
+                    child: Material(
+                      color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        leading: CircleAvatar(
+                          backgroundColor: widget.schedule.active
+                              ? theme.colorScheme.primaryContainer
+                              : theme.colorScheme.surfaceContainerHighest,
+                          child: Icon(
+                            Icons.fitness_center_rounded,
+                            color: widget.schedule.active
+                                ? theme.colorScheme.onPrimaryContainer
                                 : theme.colorScheme.onSurfaceVariant,
+                            size: 20,
                           ),
                         ),
-                      ],
+                        title: Text(
+                          widget.schedule.workout,
+                          style: const TextStyle(fontWeight: FontWeight.w800),
+                        ),
+                        subtitle: Text(
+                          '${widget.schedule.day} • ${widget.schedule.time}\n'
+                          '${widget.schedule.reminderEnabled ? 'Reminder ${widget.schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
+                        ),
+                        isThreeLine: true,
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Switch(
+                              value: widget.schedule.active,
+                              onChanged: (_) => widget.onToggle(),
+                            ),
+                            IconButton(
+                              visualDensity: VisualDensity.compact,
+                              tooltip: widget.schedule.reminderEnabled ? 'Matikan reminder' : 'Nyalakan reminder',
+                              onPressed: widget.onReminderToggle,
+                              icon: Icon(
+                                widget.schedule.reminderEnabled
+                                    ? Icons.notifications_active_rounded
+                                    : Icons.notifications_off_outlined,
+                                color: widget.schedule.reminderEnabled
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                     ),
                   ),
                 ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
