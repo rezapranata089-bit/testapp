@@ -1528,7 +1528,13 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final size = Size(constraints.maxWidth, constraints.maxHeight);
-                      final primary = theme.colorScheme.primary;
+                      // Di mode terang, warna primary cenderung terlihat pudar
+                      // setelah dicampur ke hitam/putih untuk shading wave.
+                      // Saturasi dinaikkan dulu sebelum di-lerp agar warna
+                      // wave tetap terlihat jelas/vivid, bukan keabu-abuan.
+                      final primary = theme.brightness == Brightness.light
+                          ? _saturateColor(theme.colorScheme.primary, 0.35)
+                          : theme.colorScheme.primary;
 
                       final baseColor = Color.lerp(primary, Colors.black, 0.3) ?? Colors.black;
                       final deepWave = Color.lerp(primary, Colors.black, 0.7) ?? Colors.black;
@@ -1602,6 +1608,15 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     ),
     );
   }
+}
+
+// Menaikkan saturasi HSL sebuah warna sebanyak [amount] (0.0-1.0), dipakai
+// khusus untuk warna wave di mode terang agar tidak terlihat pudar/keabuan
+// setelah dicampur dengan hitam/putih untuk shading.
+Color _saturateColor(Color color, double amount) {
+  final hsl = HSLColor.fromColor(color);
+  final boosted = hsl.withSaturation((hsl.saturation + amount).clamp(0.0, 1.0));
+  return boosted.toColor();
 }
 
 class WavePainter extends CustomPainter {
