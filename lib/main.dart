@@ -1094,7 +1094,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
               // Lottie ditempatkan di urutan PERTAMA agar dirender di BELAKANG teks
               Positioned(
                 right: -37, // Geser sedikit ke kiri dari posisi sebelumnya
-                bottom: -20, // Dinaikkan sedikit dari posisi sebelumnya
+                bottom: -21, // Dinaikkan sedikit dari posisi sebelumnya
                 child: SizedBox(
                   width: 280, 
                   height: 280,
