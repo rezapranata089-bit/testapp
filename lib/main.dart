@@ -2824,6 +2824,7 @@ class ProfilePage extends StatelessWidget {
               imageQuality: 85,
               maxWidth: 800,
             );
+            if (!context.mounted) return;
             if (picked != null) {
               setModalState(() {
                 pickedPhotoPath = picked.path;
@@ -2934,13 +2935,23 @@ class ProfilePage extends StatelessWidget {
                   child: FilledButton(
                     onPressed: () {
                       if (nameController.text.trim().isEmpty) return;
-                      appState.updateProfile(
-                        name: nameController.text,
-                        email: emailController.text,
-                        photoPath: removePhoto ? null : pickedPhotoPath,
-                        clearPhoto: removePhoto,
-                      );
+                      FocusScope.of(context).unfocus();
+                      final capturedName = nameController.text;
+                      final capturedEmail = emailController.text;
+                      final capturedPhoto = removePhoto ? null : pickedPhotoPath;
+                      final capturedRemove = removePhoto;
                       Navigator.pop(sheetContext);
+                      // Tunda update state (notifyListeners) sampai setelah frame
+                      // pop selesai, agar tidak bentrok dengan Element tree yang
+                      // masih dibongkar oleh transisi penutupan sheet.
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        appState.updateProfile(
+                          name: capturedName,
+                          email: capturedEmail,
+                          photoPath: capturedPhoto,
+                          clearPhoto: capturedRemove,
+                        );
+                      });
                     },
                     child: const Text('Simpan profil'),
                   ),
