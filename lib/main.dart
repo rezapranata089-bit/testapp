@@ -2448,9 +2448,11 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
     return SizeTransition(
       sizeFactor: _sizeAnimation,
       // Padding horizontal negatif "membatalkan" padding 20px milik
-      // ListView induk, sehingga Dismissible melebar penuh sampai pinggir
-      // layar -- background delete jadi full-bleed, tidak ter-mask
-      // mengikuti bentuk rounded card.
+      // ListView induk, sehingga area Dismissible melebar penuh sampai
+      // pinggir layar. Ini yang membuat kartu utama bisa digeser sampai
+      // benar-benar menyentuh (bahkan melewati) tepi kiri layar HP saat
+      // dihapus, bukan cuma berhenti di batas padding 20px seperti versi
+      // sebelumnya.
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: -20),
         child: ValueListenableBuilder<_ScheduleDragState?>(
@@ -2500,13 +2502,27 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
               // onDismissed bawaan tidak akan pernah jalan karena kita return false.
               // Penghapusan dialihkan sepenuhnya ke fungsi _handleDeleteConfirmation
             },
-            background: Container(
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 22),
-              color: bgColor,
-              child: Icon(
-                Icons.delete_outline_rounded,
-                color: iconColor,
+            background: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: ClipRRect(
+                // Radius disamakan dengan bentuk Card di depannya (lihat
+                // CardThemeData: BorderRadius.circular(24)), dan padding
+                // horizontalnya juga disamakan 20px seperti kartu utama.
+                // Jadi background hapus ini punya ukuran & bentuk PERSIS
+                // sama dengan kartu di atasnya -- terlihat seperti 2 kartu
+                // yang ditumpuk (kartu utama di depan, kartu "hapus"
+                // berwarna merah dengan sudut membulat di belakang), bukan
+                // cuma kotak polos bersudut lancip yang mengintip di baliknya.
+                borderRadius: BorderRadius.circular(24),
+                child: Container(
+                  color: bgColor,
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.only(right: 22),
+                  child: Icon(
+                    Icons.delete_outline_rounded,
+                    color: iconColor,
+                  ),
+                ),
               ),
             ),
             child: Padding(
