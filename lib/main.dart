@@ -1108,6 +1108,9 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late Ticker _ticker;
   final ValueNotifier<double> _time = ValueNotifier(0.0);
+  // Menahan frame terakhir yang sudah diproses agar ticker bisa dibatasi
+  // ke ~30fps, bukan 60fps, untuk mengurangi beban repaint wave.
+  int _lastFrameMicros = 0;
   // Shader di-cache sekali saja, tidak dibuat ulang tiap frame agar hemat resource.
   ui.FragmentShader? _shader;
 
@@ -1118,7 +1121,12 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
     _shader = wavesProgram?.fragmentShader();
     _ticker = createTicker((elapsed) {
       if (!mounted) return;
-      _time.value = elapsed.inMicroseconds / 1000000.0;
+      // Batasi update ke ~30fps agar repaint + composite wave (yang
+      // dibungkus ShaderMask) tidak berjalan di setiap frame 60fps.
+      final micros = elapsed.inMicroseconds;
+      if (micros - _lastFrameMicros < 33000) return;
+      _lastFrameMicros = micros;
+      _time.value = micros / 1000000.0;
     });
     if (widget.isActive) _ticker.start();
   }
@@ -1290,6 +1298,12 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
             ? (controller.page ?? 0.0)
             : 0.0;
         final distance = page.abs().clamp(0.0, 1.0);
+        // Saat diam (distance 0), lewati ShaderMask sepenuhnya. Tanpa ini,
+        // Flutter tetap melakukan saveLayer + composite ekstra tiap frame
+        // walau efek fade-nya sebenarnya tidak terlihat sama sekali.
+        if (distance <= 0.0) {
+          return child!;
+        }
         // Mask mati total saat diam (baseFadeWidth 0). Begitu mulai digeser,
         // lebar fade langsung melonjak cepat (easeOut) baru melandai menuju
         // lebar maksimal saat sudah dekat tab sebelah.
