@@ -2426,44 +2426,18 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    
-    // Gradasi melambat: Merah pekat baru tercapai jika digeser lumayan jauh (50% layar)
     final intensity = (_swipeProgress / 0.5).clamp(0.0, 1.0);
-    
-    // Efek warna pucat membaur ke merah terang
-    final bgColor = Color.lerp(
-      theme.colorScheme.errorContainer,
-      theme.colorScheme.error,
-      intensity,
-    ) ?? theme.colorScheme.error;
+    final bgColor = Color.lerp(theme.colorScheme.errorContainer, theme.colorScheme.error, intensity) ?? theme.colorScheme.error;
+    final iconColor = Color.lerp(theme.colorScheme.onErrorContainer, theme.colorScheme.onError, intensity) ?? theme.colorScheme.onError;
 
-    // Warna ikon menyesuaikan agar kontras terbaca
-    final iconColor = Color.lerp(
-      theme.colorScheme.onErrorContainer,
-      theme.colorScheme.onError,
-      intensity,
-    ) ?? theme.colorScheme.onError;
-
-    // Bungkus dengan SizeTransition agar bisa dianimasikan menyusut
     return SizeTransition(
       sizeFactor: _sizeAnimation,
-      // Padding horizontal negatif "membatalkan" padding 20px milik
-      // ListView induk, sehingga area Dismissible melebar penuh sampai
-      // pinggir layar. Ini yang membuat kartu utama bisa digeser sampai
-      // benar-benar menyentuh (bahkan melewati) tepi kiri layar HP saat
-      // dihapus, bukan cuma berhenti di batas padding 20px seperti versi
-      // sebelumnya.
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: -20),
         child: ValueListenableBuilder<_ScheduleDragState?>(
           valueListenable: widget.dragNotifier,
           builder: (context, dragState, dismissibleChild) {
-            // Kartu tetangga (persis 1 index di atas/bawah) ikut "tertarik"
-            // mengikuti arah swipe kartu yang sedang digeser, memberi efek
-            // fluid seperti rubber-band. Kartu yang sedang digeser sendiri
-            // tidak diberi efek ini karena sudah bergerak lewat Dismissible.
-            final isNeighbor = dragState != null &&
-                (dragState.index - widget.index).abs() == 1;
+            final isNeighbor = dragState != null && (dragState.index - widget.index).abs() == 1;
             final pull = isNeighbor ? dragState!.progress : 0.0;
             return Transform.translate(
               offset: Offset(-pull * 14.0, 0),
@@ -2479,6 +2453,8 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
           child: Dismissible(
             key: ValueKey(widget.schedule.id),
             direction: DismissDirection.endToStart,
+            // Hilangkan Clip default Dismissible agar kartu utama bisa keluar melewati layar
+            clipBehavior: Clip.none,
             onUpdate: (details) {
               if (_swipeProgress != details.progress && mounted) {
                 setState(() => _swipeProgress = details.progress);
@@ -2490,106 +2466,84 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
             },
             confirmDismiss: (direction) async {
               HapticFeedback.mediumImpact();
-
-              // 1. Munculkan popup dialog tanpa memblokir baris berikutnya
               _handleDeleteConfirmation(theme);
-
-              // 2. Langsung kembalikan "false" ke sistem Dismissible,
-              // sehingga card otomatis bergeser kembali ke awal dengan animasi fluid.
               return false;
             },
-            onDismissed: (_) {
-              // onDismissed bawaan tidak akan pernah jalan karena kita return false.
-              // Penghapusan dialihkan sepenuhnya ke fungsi _handleDeleteConfirmation
-            },
-            background: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: ClipRRect(
-                // Radius disamakan dengan bentuk Card di depannya (lihat
-                // CardThemeData: BorderRadius.circular(24)), dan padding
-                // horizontalnya juga disamakan 20px seperti kartu utama.
-                // Jadi background hapus ini punya ukuran & bentuk PERSIS
-                // sama dengan kartu di atasnya -- terlihat seperti 2 kartu
-                // yang ditumpuk (kartu utama di depan, kartu "hapus"
-                // berwarna merah dengan sudut membulat di belakang), bukan
-                // cuma kotak polos bersudut lancip yang mengintip di baliknya.
-                borderRadius: BorderRadius.circular(24),
+            background: Container(
+              alignment: Alignment.centerRight,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Container(
-                  color: bgColor,
+                  decoration: BoxDecoration(
+                    color: bgColor,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
                   alignment: Alignment.centerRight,
                   padding: const EdgeInsets.only(right: 22),
-                  child: Icon(
-                    Icons.delete_outline_rounded,
-                    color: iconColor,
-                  ),
+                  child: Icon(Icons.delete_outline_rounded, color: iconColor),
                 ),
               ),
             ),
             child: Padding(
-              // Mengembalikan 20px yang tadi "dibatalkan" di atas, khusus
-              // untuk lapisan kartu visualnya saja -- tampilan saat diam
-              // (tidak sedang di-swipe) jadi identik seperti sebelumnya.
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Card(
                 clipBehavior: Clip.antiAlias,
                 child: Material(
                   color: theme.cardTheme.color ?? theme.colorScheme.surface,
                   child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              leading: CircleAvatar(
-                backgroundColor: widget.schedule.active
-                    ? theme.colorScheme.primaryContainer
-                    : theme.colorScheme.surfaceContainerHighest,
-                child: Icon(
-                  Icons.fitness_center_rounded,
-                  color: widget.schedule.active
-                      ? theme.colorScheme.onPrimaryContainer
-                      : theme.colorScheme.onSurfaceVariant,
-                  size: 20,
-                ),
-              ),
-              title: Text(
-                widget.schedule.workout,
-                style: const TextStyle(fontWeight: FontWeight.w800),
-              ),
-              subtitle: Text(
-                '${widget.schedule.day} • ${widget.schedule.time}\n'
-                '${widget.schedule.reminderEnabled ? 'Reminder ${widget.schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
-              ),
-              isThreeLine: true,
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  Switch(
-                    value: widget.schedule.active,
-                    onChanged: (_) => widget.onToggle(),
-                  ),
-                  IconButton(
-                    visualDensity: VisualDensity.compact,
-                    tooltip: widget.schedule.reminderEnabled
-                        ? 'Matikan reminder'
-                        : 'Nyalakan reminder',
-                    onPressed: widget.onReminderToggle,
-                    icon: Icon(
-                      widget.schedule.reminderEnabled
-                          ? Icons.notifications_active_rounded
-                          : Icons.notifications_off_outlined,
-                      color: widget.schedule.reminderEnabled
-                          ? theme.colorScheme.primary
-                          : theme.colorScheme.onSurfaceVariant,
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                    leading: CircleAvatar(
+                      backgroundColor: widget.schedule.active
+                          ? theme.colorScheme.primaryContainer
+                          : theme.colorScheme.surfaceContainerHighest,
+                      child: Icon(
+                        Icons.fitness_center_rounded,
+                        color: widget.schedule.active
+                            ? theme.colorScheme.onPrimaryContainer
+                            : theme.colorScheme.onSurfaceVariant,
+                        size: 20,
+                      ),
+                    ),
+                    title: Text(
+                      widget.schedule.workout,
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                    subtitle: Text(
+                      '${widget.schedule.day} • ${widget.schedule.time}\n'
+                      '${widget.schedule.reminderEnabled ? 'Reminder ${widget.schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
+                    ),
+                    isThreeLine: true,
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Switch(
+                          value: widget.schedule.active,
+                          onChanged: (_) => widget.onToggle(),
+                        ),
+                        IconButton(
+                          visualDensity: VisualDensity.compact,
+                          tooltip: widget.schedule.reminderEnabled ? 'Matikan reminder' : 'Nyalakan reminder',
+                          onPressed: widget.onReminderToggle,
+                          icon: Icon(
+                            widget.schedule.reminderEnabled
+                                ? Icons.notifications_active_rounded
+                                : Icons.notifications_off_outlined,
+                            color: widget.schedule.reminderEnabled
+                                ? theme.colorScheme.primary
+                                : theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
           ),
         ),
       ),
-    ),
-  ),
-),
-      );
+    );
   }
 }
 
