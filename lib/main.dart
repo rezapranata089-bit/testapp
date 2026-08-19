@@ -2008,86 +2008,105 @@ class SchedulePage extends StatelessWidget {
     return SafeArea(
       top: false,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(
-          20,
-          MediaQuery.of(context).padding.top + 32,
-          20,
-          40,
+        // Padding horizontal dihapus agar Dismissible card bisa menyentuh pinggir layar tanpa terpotong
+        padding: EdgeInsets.only(
+          top: MediaQuery.of(context).padding.top + 32,
+          bottom: 40,
         ),
         children: [
-          Text(
-            'Jadwal & Pengingat',
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              letterSpacing: -0.6,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            'Atur ritme latihan yang bisa kamu jalani.',
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: theme.colorScheme.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 42),
-          _WeekStrip(),
-          const SizedBox(height: 42),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Jadwal mingguan',
-                style: theme.textTheme.titleLarge?.copyWith(
-                  fontFamily: 'DMSerifDisplay',
-                  fontWeight: FontWeight.w400,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Jadwal & Pengingat',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.6,
+                  ),
                 ),
-              ),
-              IconButton.filledTonal(
-                onPressed: () => _showAddSchedule(context),
-                icon: const Icon(Icons.add_rounded),
-                tooltip: 'Tambah jadwal',
-              ),
-            ],
+                const SizedBox(height: 6),
+                Text(
+                  'Atur ritme latihan yang bisa kamu jalani.',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 42),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _WeekStrip(),
+          ),
+          const SizedBox(height: 42),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'Jadwal mingguan',
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontFamily: 'DMSerifDisplay',
+                    fontWeight: FontWeight.w400,
+                  ),
+                ),
+                IconButton.filledTonal(
+                  onPressed: () => _showAddSchedule(context),
+                  icon: const Icon(Icons.add_rounded),
+                  tooltip: 'Tambah jadwal',
+                ),
+              ],
+            ),
           ),
           const SizedBox(height: 10),
           if (appState.schedules.isEmpty)
-            const _ScheduleEmptyState()
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: _ScheduleEmptyState(),
+            )
           else
             _ScheduleList(appState: appState),
           const SizedBox(height: 14),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(18),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.notifications_active_outlined,
-                    color: theme.colorScheme.primary,
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Reminder latihan',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Pengingat akan mengikuti jadwal yang aktif.',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ],
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(18),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.notifications_active_outlined,
+                      color: theme.colorScheme.primary,
                     ),
-                  ),
-                  Switch(
-                    value: appState.remindersEnabled,
-                    onChanged: appState.schedules.isEmpty
-                        ? null
-                        : appState.setAllRemindersEnabled,
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Reminder latihan',
+                            style: TextStyle(fontWeight: FontWeight.w800),
+                          ),
+                          SizedBox(height: 3),
+                          Text(
+                            'Pengingat akan mengikuti jadwal yang aktif.',
+                            style: TextStyle(fontSize: 12),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: appState.remindersEnabled,
+                      onChanged: appState.schedules.isEmpty
+                          ? null
+                          : appState.setAllRemindersEnabled,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -2434,78 +2453,70 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
       sizeFactor: _sizeAnimation,
       child: Stack(
         children: [
-          // CARD DELETE (BELAKANG) - Bersifat statis (stay in place)
-          // Sekarang meluas hingga pinggir layar (tanpa padding horizontal)
+          // CARD DELETE (BELAKANG)
           if (_swipeProgress > 0)
             Positioned.fill(
               child: Container(
+                // Margin kiri 20 agar menyamakan sisi kiri dengan card, sisi kanan bebas sampai pinggir layar
+                margin: const EdgeInsets.only(left: 20, right: 0),
                 decoration: BoxDecoration(
                   color: bgColor,
-                  borderRadius: BorderRadius.horizontal(
-                    left: const Radius.circular(24),
-                    // Radius kanan mengecil saat digeser agar menyatu dengan tepi layar
-                    right: Radius.circular(24 * (1 - _swipeProgress)),
+                  borderRadius: const BorderRadius.horizontal(
+                    left: Radius.circular(24),
+                    // Sisi kanan flat karena menempel pada tepi kanan layar
+                    right: Radius.circular(0),
                   ),
                 ),
                 alignment: Alignment.centerRight,
-                // Padding kanan ditambah 20 untuk kompensasi hilangnya padding parent
-                padding: const EdgeInsets.only(right: 42),
+                padding: const EdgeInsets.only(right: 28),
                 child: Icon(Icons.delete_outline_rounded, color: iconColor),
               ),
             ),
 
-          // CARD UTAMA (DEPAN) - Dibungkus Dismissible untuk menangani gerakan swipe
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: -20),
-            child: ValueListenableBuilder<_ScheduleDragState?>(
-              valueListenable: widget.dragNotifier,
-              builder: (context, dragState, dismissibleChild) {
-                final isNeighbor = dragState != null && (dragState.index - widget.index).abs() == 1;
-                final pull = isNeighbor ? dragState!.progress : 0.0;
-                return Transform.translate(
-                  offset: Offset(-pull * 14.0, 0),
-                  child: Transform.scale(
-                    scaleY: 1 - (pull * 0.015),
-                    child: Opacity(
-                      opacity: 1 - (pull * 0.12),
-                      child: dismissibleChild,
-                    ),
+          // CARD UTAMA (DEPAN)
+          ValueListenableBuilder<_ScheduleDragState?>(
+            valueListenable: widget.dragNotifier,
+            builder: (context, dragState, dismissibleChild) {
+              final isNeighbor = dragState != null && (dragState.index - widget.index).abs() == 1;
+              final pull = isNeighbor ? dragState!.progress : 0.0;
+              return Transform.translate(
+                offset: Offset(-pull * 14.0, 0),
+                child: Transform.scale(
+                  scaleY: 1 - (pull * 0.015),
+                  child: Opacity(
+                    opacity: 1 - (pull * 0.12),
+                    child: dismissibleChild,
                   ),
+                ),
+              );
+            },
+            child: Dismissible(
+              key: ValueKey(widget.schedule.id),
+              direction: DismissDirection.endToStart,
+              background: const SizedBox.shrink(),
+              onUpdate: (details) {
+                if (_swipeProgress != details.progress && mounted) {
+                  setState(() => _swipeProgress = details.progress);
+                }
+                widget.dragNotifier.value = _ScheduleDragState(
+                  index: widget.index,
+                  progress: details.progress,
                 );
               },
-              child: Dismissible(
-                key: ValueKey(widget.schedule.id),
-                direction: DismissDirection.endToStart,
-                // Hilangkan background internal Dismissible agar tidak terjadi clipping reveal bertahap
-                background: const SizedBox.shrink(),
-                onUpdate: (details) {
-                  if (_swipeProgress != details.progress && mounted) {
-                    setState(() => _swipeProgress = details.progress);
-                  }
-                  widget.dragNotifier.value = _ScheduleDragState(
-                    index: widget.index,
-                    progress: details.progress,
-                  );
-                },
-                confirmDismiss: (direction) async {
-                  HapticFeedback.mediumImpact();
-                  _handleDeleteConfirmation(theme);
-                  return false;
-                },
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    // Padding mengecil hingga 0 saat digeser sehingga card menyentuh tepi layar
-                    horizontal: 20 * (1 - _swipeProgress),
+              confirmDismiss: (direction) async {
+                HapticFeedback.mediumImpact();
+                _handleDeleteConfirmation(theme);
+                return false;
+              },
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Card(
+                  clipBehavior: Clip.antiAlias,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(24),
                   ),
-                  child: Card(
-                    clipBehavior: Clip.antiAlias,
-                    shape: RoundedRectangleBorder(
-                      // Radius mengecil saat digeser untuk efek transisi yang mulus ke tepi layar
-                      borderRadius:
-                          BorderRadius.circular(24 * (1 - _swipeProgress)),
-                    ),
-                    child: Material(
-                      color: theme.cardTheme.color ?? theme.colorScheme.surface,
+                  child: Material(
+                    color: theme.cardTheme.color ?? theme.colorScheme.surface,
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                         leading: CircleAvatar(
