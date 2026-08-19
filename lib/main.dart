@@ -9,6 +9,8 @@ import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:sqflite/sqflite.dart';
+import 'package:path/path.dart' as p;
 
 ui.FragmentProgram? wavesProgram;
 
@@ -280,6 +282,107 @@ const workoutOfTheDay = WorkoutData(
   ],
 );
 
+class DatabaseHelper {
+  static final DatabaseHelper instance = DatabaseHelper._init();
+  static Database? _database;
+
+  DatabaseHelper._init();
+
+  Future<Database> get database async {
+    if (_database != null) return _database!;
+    _database = await _initDB('workout_rumah.db');
+    return _database!;
+  }
+
+  Future<Database> _initDB(String filePath) async {
+    final dbPath = await getDatabasesPath();
+    final path = p.join(dbPath, filePath);
+
+    return await openDatabase(
+      path,
+      version: 1,
+      onCreate: _createDB,
+    );
+  }
+
+  Future _createDB(Database db, int version) async {
+    await db.execute('''
+      CREATE TABLE history (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        completedAt TEXT NOT NULL,
+        durationMinutes INTEGER NOT NULL,
+        exerciseCount INTEGER NOT NULL,
+        calories INTEGER NOT NULL
+      )
+    ''');
+
+    await db.execute('''
+      CREATE TABLE schedules (
+        id TEXT PRIMARY KEY,
+        day TEXT NOT NULL,
+        time TEXT NOT NULL,
+        workout TEXT NOT NULL,
+        active INTEGER NOT NULL,
+        reminderEnabled INTEGER NOT NULL,
+        reminderMinutes INTEGER NOT NULL
+      )
+    ''');
+  }
+
+  Future<void> insertHistory(WorkoutHistory history) async {
+    final db = await instance.database;
+    await db.insert('history', history.toJson());
+  }
+
+  Future<List<WorkoutHistory>> getAllHistory() async {
+    final db = await instance.database;
+    final maps = await db.query('history', orderBy: 'completedAt DESC');
+    return maps.map((json) => WorkoutHistory.fromJson(json)).toList();
+  }
+
+  Future<void> insertSchedule(ScheduleItem schedule) async {
+    final db = await instance.database;
+    await db.insert('schedules', _scheduleToMap(schedule));
+  }
+
+  Future<void> updateSchedule(ScheduleItem schedule) async {
+    final db = await instance.database;
+    await db.update('schedules', _scheduleToMap(schedule),
+        where: 'id = ?', whereArgs: [schedule.id]);
+  }
+
+  Future<void> updateAllSchedulesReminder(bool enabled) async {
+    final db = await instance.database;
+    await db.update('schedules', {'reminderEnabled': enabled ? 1 : 0});
+  }
+
+  Future<void> deleteSchedule(String id) async {
+    final db = await instance.database;
+    await db.delete('schedules', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<List<ScheduleItem>> getAllSchedules() async {
+    final db = await instance.database;
+    final maps = await db.query('schedules');
+    return maps.map((map) => _scheduleFromMap(map)).toList();
+  }
+
+  Map<String, Object?> _scheduleToMap(ScheduleItem schedule) {
+    final map = schedule.toJson();
+    map['active'] = schedule.active ? 1 : 0;
+    map['reminderEnabled'] = schedule.reminderEnabled ? 1 : 0;
+    return map;
+  }
+
+  ScheduleItem _scheduleFromMap(Map<String, Object?> map) {
+    final mutableMap = Map<String, dynamic>.from(map);
+    mutableMap['active'] = (mutableMap['active'] as int) == 1;
+    mutableMap['reminderEnabled'] = (mutableMap['reminderEnabled'] as int) == 1;
+    return ScheduleItem.fromJson(mutableMap);
+  }
+}
+
 class WorkoutAppState extends ChangeNotifier {
   WorkoutAppState() {
     _load();
@@ -374,6 +477,7 @@ class WorkoutAppState extends ChangeNotifier {
   Future<void> _load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      
       final savedTheme = prefs.getString('themeMode');
       if (savedTheme == 'light') {
         themeMode = ThemeMode.light;
@@ -393,25 +497,45 @@ class WorkoutAppState extends ChangeNotifier {
       }
       _syncPhotoCache();
 
-      final savedHistory = prefs.getString('history');
-      if (savedHistory != null) {
-        final decoded = jsonDecode(savedHistory) as List<dynamic>;
-        history = decoded
-            .map((item) => WorkoutHistory.fromJson(
-                  Map<String, dynamic>.from(item as Map),
-                ))
-            .toList();
+      // Migrasi aman ke SQLite untuk pengguna lama
+      final isFirstTimeSqflite = prefs.getBool('isFirstTimeSqflite') ?? true;
+      if (isFirstTimeSqflite) {
+        final savedHistory = prefs.getString('history');
+        if (savedHistory != null) {
+          final decoded = jsonDecode(savedHistory) as List<dynamic>;
+          history = decoded
+              .map((item) => WorkoutHistory.fromJson(
+                    Map<String, dynamic>.from(item as Map),
+                  ))
+              .toList();
+        }
+
+        final savedSchedules = prefs.getString('schedules');
+        if (savedSchedules != null) {
+          final decoded = jsonDecode(savedSchedules) as List<dynamic>;
+          schedules = decoded
+              .map((item) => ScheduleItem.fromJson(
+                    Map<String, dynamic>.from(item as Map),
+                  ))
+              .toList();
+        }
+
+        for (var h in history) {
+          await DatabaseHelper.instance.insertHistory(h);
+        }
+        for (var s in schedules) {
+          await DatabaseHelper.instance.insertSchedule(s);
+        }
+
+        await prefs.setBool('isFirstTimeSqflite', false);
+        await prefs.remove('history');
+        await prefs.remove('schedules');
       }
 
-      final savedSchedules = prefs.getString('schedules');
-      if (savedSchedules != null) {
-        final decoded = jsonDecode(savedSchedules) as List<dynamic>;
-        schedules = decoded
-            .map((item) => ScheduleItem.fromJson(
-                  Map<String, dynamic>.from(item as Map),
-                ))
-            .toList();
-      }
+      // Load data langsung dari SQLite
+      history = await DatabaseHelper.instance.getAllHistory();
+      schedules = await DatabaseHelper.instance.getAllSchedules();
+      
     } catch (_) {
       // Data yang rusak tidak boleh membuat aplikasi gagal dibuka.
       history = [];
@@ -439,14 +563,7 @@ class WorkoutAppState extends ChangeNotifier {
     await prefs.setString('themeMode', themeMode.name);
     await prefs.setInt('accentIndex', accentIndex);
     await prefs.setString('profile', jsonEncode(profile.toJson()));
-    await prefs.setString(
-      'history',
-      jsonEncode(history.map((item) => item.toJson()).toList()),
-    );
-    await prefs.setString(
-      'schedules',
-      jsonEncode(schedules.map((item) => item.toJson()).toList()),
-    );
+    // Note: History & Schedules langsung disimpan ke SQLite di setiap method-nya
   }
 
   void setThemeMode(ThemeMode value) {
@@ -465,18 +582,18 @@ class WorkoutAppState extends ChangeNotifier {
     required int durationMinutes,
     required int calories,
   }) {
-    history = [
-      WorkoutHistory(
-        title: workoutOfTheDay.title,
-        completedAt: DateTime.now(),
-        durationMinutes: durationMinutes,
-        exerciseCount: workoutOfTheDay.exercises.length,
-        calories: calories,
-      ),
-      ...history,
-    ];
+    final newHistory = WorkoutHistory(
+      title: workoutOfTheDay.title,
+      completedAt: DateTime.now(),
+      durationMinutes: durationMinutes,
+      exerciseCount: workoutOfTheDay.exercises.length,
+      calories: calories,
+    );
+    
+    history = [newHistory, ...history];
     notifyListeners();
-    unawaited(_persist());
+    
+    unawaited(DatabaseHelper.instance.insertHistory(newHistory));
   }
 
   void updateProfile({
@@ -503,20 +620,20 @@ class WorkoutAppState extends ChangeNotifier {
     required bool reminderEnabled,
     required int reminderMinutes,
   }) {
-    schedules = [
-      ...schedules,
-      ScheduleItem(
-        id: DateTime.now().microsecondsSinceEpoch.toString(),
-        day: day,
-        time: time,
-        workout: workout,
-        active: true,
-        reminderEnabled: reminderEnabled,
-        reminderMinutes: reminderMinutes,
-      ),
-    ];
+    final newItem = ScheduleItem(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      day: day,
+      time: time,
+      workout: workout,
+      active: true,
+      reminderEnabled: reminderEnabled,
+      reminderMinutes: reminderMinutes,
+    );
+    
+    schedules = [...schedules, newItem];
     notifyListeners();
-    unawaited(_persist());
+    
+    unawaited(DatabaseHelper.instance.insertSchedule(newItem));
   }
 
   void toggleSchedule(String id) {
@@ -525,7 +642,9 @@ class WorkoutAppState extends ChangeNotifier {
             item.id == id ? item.copyWith(active: !item.active) : item)
         .toList();
     notifyListeners();
-    unawaited(_persist());
+    
+    final updatedItem = schedules.firstWhere((item) => item.id == id);
+    unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
   }
 
   void setScheduleReminder(String id, bool enabled) {
@@ -535,7 +654,9 @@ class WorkoutAppState extends ChangeNotifier {
             : item)
         .toList();
     notifyListeners();
-    unawaited(_persist());
+    
+    final updatedItem = schedules.firstWhere((item) => item.id == id);
+    unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
   }
 
   void setAllRemindersEnabled(bool enabled) {
@@ -543,13 +664,15 @@ class WorkoutAppState extends ChangeNotifier {
         .map((item) => item.copyWith(reminderEnabled: enabled))
         .toList();
     notifyListeners();
-    unawaited(_persist());
+    
+    unawaited(DatabaseHelper.instance.updateAllSchedulesReminder(enabled));
   }
 
   void removeSchedule(String id) {
     schedules = schedules.where((item) => item.id != id).toList();
     notifyListeners();
-    unawaited(_persist());
+    
+    unawaited(DatabaseHelper.instance.deleteSchedule(id));
   }
 
   void updateSchedule(
@@ -573,7 +696,9 @@ class WorkoutAppState extends ChangeNotifier {
       return item;
     }).toList();
     notifyListeners();
-    unawaited(_persist());
+    
+    final updatedItem = schedules.firstWhere((item) => item.id == id);
+    unawaited(DatabaseHelper.instance.updateSchedule(updatedItem));
   }
 }
 
