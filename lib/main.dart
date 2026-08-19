@@ -2116,7 +2116,7 @@ class SchedulePage extends StatelessWidget {
                         children: [
                           Text(
                             'Reminder latihan',
-                            style: TextStyle(fontWeight: FontWeight.w800),
+                            style: TextStyle(fontWeight: FontWeight.w600),
                           ),
                           SizedBox(height: 3),
                           Text(
@@ -2303,23 +2303,30 @@ class _WeekStrip extends StatelessWidget {
     const labels = ['S', 'S', 'R', 'K', 'J', 'S', 'M'];
     const dayNames = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: List.generate(7, (index) {
-        final date = monday.add(Duration(days: index));
-        final isToday = date == today;
-        final daySchedules = appState.schedules
-            .where((s) => s.day == dayNames[index] && s.active)
-            .toList();
-        
-        return _DayStripItem(
-          label: labels[index],
-          date: date,
-          isToday: isToday,
-          dayName: dayNames[index],
-          schedules: daySchedules,
-        );
-      }),
+    return SizedBox(
+      height: 90, // Beri ruang agar efek lonjong dan animasi membal tetap aman di dalam row
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: List.generate(7, (index) {
+          final date = monday.add(Duration(days: index));
+          final isToday = date == today;
+          final daySchedules = appState.schedules
+              .where((s) => s.day == dayNames[index] && s.active)
+              .toList();
+          
+          final distance = (index - 3).abs(); // Jarak posisi dari tengah (Kamis)
+
+          return _DayStripItem(
+            label: labels[index],
+            date: date,
+            isToday: isToday,
+            dayName: dayNames[index],
+            schedules: daySchedules,
+            distance: distance,
+          );
+        }),
+      ),
     );
   }
 }
@@ -2331,6 +2338,7 @@ class _DayStripItem extends StatefulWidget {
     required this.isToday,
     required this.dayName,
     required this.schedules,
+    required this.distance,
   });
 
   final String label;
@@ -2338,6 +2346,7 @@ class _DayStripItem extends StatefulWidget {
   final bool isToday;
   final String dayName;
   final List<ScheduleItem> schedules;
+  final int distance;
 
   @override
   State<_DayStripItem> createState() => _DayStripItemState();
@@ -2347,7 +2356,7 @@ class _DayStripItemState extends State<_DayStripItem> {
   bool _isPressed = false;
 
   void _handleTap() {
-    HapticFeedback.selectionClick();
+    HapticFeedback.lightImpact();
     final msg = widget.schedules.isEmpty
         ? 'Waktunya istirahat! Tidak ada jadwal hari ${widget.dayName}.'
         : '${widget.dayName}: Ada ${widget.schedules.length} jadwal latihan aktif.';
@@ -2355,7 +2364,7 @@ class _DayStripItemState extends State<_DayStripItem> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-        content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)),
+        content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w500)),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: const Duration(seconds: 2),
@@ -2365,6 +2374,11 @@ class _DayStripItemState extends State<_DayStripItem> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    
+    // Ukuran dinamis: pill tengah membesar, pinggir semakin mengecil untuk efek melengkung
+    final double width = 48.0 - (widget.distance * 3.0);
+    final double height = 86.0 - (widget.distance * 8.0);
+
     return GestureDetector(
       onTapDown: (_) => setState(() => _isPressed = true),
       onTapUp: (_) {
@@ -2373,68 +2387,69 @@ class _DayStripItemState extends State<_DayStripItem> {
       },
       onTapCancel: () => setState(() => _isPressed = false),
       child: AnimatedScale(
-        scale: _isPressed ? 0.85 : 1.0,
-        duration: const Duration(milliseconds: 150),
-        curve: Curves.easeOutCubic,
-        child: Column(
-          children: [
-            Text(
-              widget.label,
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: widget.isToday ? theme.colorScheme.primary : theme.colorScheme.onSurfaceVariant,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 8),
-            AnimatedContainer(
-              duration: const Duration(milliseconds: 250),
-              width: 40,
-              height: 48,
-              decoration: BoxDecoration(
-                color: widget.isToday
-                    ? theme.colorScheme.primary
-                    : (widget.schedules.isNotEmpty
-                        ? theme.colorScheme.primaryContainer.withOpacity(0.4)
-                        : theme.colorScheme.surfaceContainerHighest),
-                borderRadius: BorderRadius.circular(14),
-                border: widget.isToday
-                    ? null
-                    : Border.all(
-                        color: widget.schedules.isNotEmpty
-                            ? theme.colorScheme.primary.withOpacity(0.3)
-                            : Colors.transparent,
-                        width: 1.5,
-                      ),
-              ),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    '${widget.date.day}',
-                    style: TextStyle(
-                      color: widget.isToday
-                          ? theme.colorScheme.onPrimary
-                          : theme.colorScheme.onSurface,
-                      fontWeight: FontWeight.w800,
-                    ),
+        scale: _isPressed ? 0.75 : 1.0,
+        // Durasi diperlama dengan curve elasticOut saat dilepas untuk memberikan efek fluid/membal
+        duration: Duration(milliseconds: _isPressed ? 150 : 500),
+        curve: _isPressed ? Curves.easeOutQuad : Curves.elasticOut,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          width: width,
+          height: height,
+          decoration: BoxDecoration(
+            color: widget.isToday
+                ? theme.colorScheme.primary
+                : (widget.schedules.isNotEmpty
+                    ? theme.colorScheme.primaryContainer.withOpacity(0.4)
+                    : theme.colorScheme.surfaceContainerHighest),
+            borderRadius: BorderRadius.circular(100), // Membentuk pill lonjong penuh
+            border: widget.isToday
+                ? null
+                : Border.all(
+                    color: widget.schedules.isNotEmpty
+                        ? theme.colorScheme.primary.withOpacity(0.3)
+                        : Colors.transparent,
+                    width: 1.5,
                   ),
-                  if (widget.schedules.isNotEmpty) ...[
-                    const SizedBox(height: 2),
-                    Container(
-                      width: 4,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: widget.isToday
-                            ? theme.colorScheme.onPrimary
-                            : theme.colorScheme.primary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                  ],
-                ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                widget.label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: widget.isToday 
+                      ? theme.colorScheme.onPrimary.withOpacity(0.8) 
+                      : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 11,
+                ),
               ),
-            ),
-          ],
+              SizedBox(height: 4.0 - (widget.distance * 0.5)),
+              Text(
+                '${widget.date.day}',
+                style: TextStyle(
+                  color: widget.isToday
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.onSurface,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 16.0 - (widget.distance * 0.8), // Teks sedikit menyesuaikan ukuran pill
+                ),
+              ),
+              if (widget.schedules.isNotEmpty) ...[
+                SizedBox(height: 4.0 - (widget.distance * 0.5)),
+                Container(
+                  width: 4,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: widget.isToday
+                        ? theme.colorScheme.onPrimary
+                        : theme.colorScheme.primary,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ],
+            ],
+          ),
         ),
       ),
     );
@@ -2928,13 +2943,13 @@ class _ScheduleTileState extends State<_ScheduleTile> with TickerProviderStateMi
                                 children: [
                                   Text(
                                     widget.schedule.workout,
-                                    style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 16),
+                                    style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     '${widget.schedule.day} • ${widget.schedule.time}',
                                     style: TextStyle(
-                                      fontWeight: FontWeight.w600,
+                                      fontWeight: FontWeight.w500,
                                       color: theme.colorScheme.onSurfaceVariant,
                                       fontSize: 13,
                                     ),
@@ -2962,7 +2977,7 @@ class _ScheduleTileState extends State<_ScheduleTile> with TickerProviderStateMi
                                               : 'Reminder mati',
                                           style: TextStyle(
                                             fontSize: 12,
-                                            fontWeight: FontWeight.w600,
+                                            fontWeight: FontWeight.w500,
                                             color: widget.schedule.reminderEnabled
                                                 ? theme.colorScheme.primary
                                                 : theme.colorScheme.onSurfaceVariant,
@@ -3016,7 +3031,7 @@ class _ScheduleEmptyState extends StatelessWidget {
           const SizedBox(height: 12),
           const Text(
             'Belum ada jadwal latihan',
-            style: TextStyle(fontWeight: FontWeight.w800),
+            style: TextStyle(fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 5),
           const Text(
