@@ -2445,9 +2445,6 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final intensity = (_swipeProgress / 0.5).clamp(0.0, 1.0);
-    // Animasi edgeProgress membuat background merah bertransisi dari 
-    // bentuk card melengkung (sebelum swipe) ke tepi layar yang rata (saat diswipe)
-    final edgeProgress = (_swipeProgress * 4).clamp(0.0, 1.0);
     final bgColor = Color.lerp(theme.colorScheme.errorContainer, theme.colorScheme.error, intensity) ?? theme.colorScheme.error;
     final iconColor = Color.lerp(theme.colorScheme.onErrorContainer, theme.colorScheme.onError, intensity) ?? theme.colorScheme.onError;
 
@@ -2459,22 +2456,15 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
           if (_swipeProgress > 0)
             Positioned.fill(
               child: Container(
-                margin: EdgeInsets.only(
-                  left: 20,
-                  // Margin kanan mengecil agar menyentuh tepi layar secara fluid
-                  right: 20 * (1 - edgeProgress),
-                ),
+                // Margin statis kiri kanan persis seperti card utama
+                margin: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: BoxDecoration(
                   color: bgColor,
-                  borderRadius: BorderRadius.horizontal(
-                    left: const Radius.circular(24),
-                    // Radius kanan berawal melengkung (mengikuti card) lalu menjadi rata (0) saat menyentuh tepi
-                    right: Radius.circular(24 * (1 - edgeProgress)),
-                  ),
+                  // Border radius statis di semua sisi persis seperti card utama
+                  borderRadius: BorderRadius.circular(24),
                 ),
                 alignment: Alignment.centerRight,
-                // Padding bergeser sedikit agar posisi icon tetap terasa natural saat background meregang
-                padding: EdgeInsets.only(right: 20 + (8 * edgeProgress)),
+                padding: const EdgeInsets.only(right: 22),
                 child: Icon(Icons.delete_outline_rounded, color: iconColor),
               ),
             ),
