@@ -780,131 +780,99 @@ class _SlidingNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final intensity = (_swipeProgress / 0.5).clamp(0.0, 1.0);
-    final bgColor = Color.lerp(theme.colorScheme.errorContainer, theme.colorScheme.error, intensity) ?? theme.colorScheme.error;
-    final iconColor = Color.lerp(theme.colorScheme.onErrorContainer, theme.colorScheme.onError, intensity) ?? theme.colorScheme.onError;
+    final items = [
+      (Icons.home_outlined, Icons.home_rounded, 'Home'),
+      (Icons.calendar_month_outlined, Icons.calendar_month_rounded, 'Jadwal'),
+      (Icons.insights_outlined, Icons.insights_rounded, 'Progress'),
+      (Icons.person_outline_rounded, Icons.person_rounded, 'Profil'),
+    ];
 
-    return SizeTransition(
-      sizeFactor: _sizeAnimation,
-      child: Stack(
-        children: [
-          // CARD DELETE (BELAKANG)
-          if (_swipeProgress > 0)
-            Positioned.fill(
-              child: Container(
-                // Margin kiri 20 agar rata dengan card, sisi kanan bebas menyentuh tepi layar
-                margin: const EdgeInsets.only(left: 20, right: 0),
-                decoration: BoxDecoration(
-                  color: bgColor,
-                  borderRadius: const BorderRadius.horizontal(
-                    left: Radius.circular(24),
-                    // Sisi kanan tetap siku karena menempel persis di tepi layar
-                    right: Radius.circular(0),
-                  ),
-                ),
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 28),
-                child: Icon(Icons.delete_outline_rounded, color: iconColor),
+    // Background default dari Material 3 Navigation Bar
+    final bgColor = theme.navigationBarTheme.backgroundColor ?? 
+                    theme.colorScheme.surfaceContainer;
+
+    return Container(
+      height: 80 + MediaQuery.of(context).padding.bottom,
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
+      color: bgColor,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final itemWidth = constraints.maxWidth / items.length;
+          const indicatorWidth = 64.0;
+          const indicatorHeight = 32.0;
+
+          return Stack(
+            children: [
+              // Pill indicator dengan efek squash & stretch (fluid) saat
+              // berpindah tab, mirip navbar Play Store.
+              _FluidPillIndicator(
+                selectedIndex: selectedIndex,
+                itemWidth: itemWidth,
+                indicatorWidth: indicatorWidth,
+                indicatorHeight: indicatorHeight,
+                color: theme.colorScheme.secondaryContainer,
               ),
-            ),
+              // Ikon dan Label Text
+              Row(
+                children: items.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final isSelected = selectedIndex == index;
+                  final item = entry.value;
 
-          // CARD UTAMA (DEPAN)
-          ValueListenableBuilder<_ScheduleDragState?>(
-            valueListenable: widget.dragNotifier,
-            builder: (context, dragState, dismissibleChild) {
-              final isNeighbor = dragState != null && (dragState.index - widget.index).abs() == 1;
-              final pull = isNeighbor ? dragState!.progress : 0.0;
-              return Transform.translate(
-                offset: Offset(-pull * 14.0, 0),
-                child: Transform.scale(
-                  scaleY: 1 - (pull * 0.015),
-                  child: Opacity(
-                    opacity: 1 - (pull * 0.12),
-                    child: dismissibleChild,
-                  ),
-                ),
-              );
-            },
-            child: Dismissible(
-              key: ValueKey(widget.schedule.id),
-              direction: DismissDirection.endToStart,
-              background: const SizedBox.shrink(),
-              onUpdate: (details) {
-                if (_swipeProgress != details.progress && mounted) {
-                  setState(() => _swipeProgress = details.progress);
-                }
-                widget.dragNotifier.value = _ScheduleDragState(
-                  index: widget.index,
-                  progress: details.progress,
-                );
-              },
-              confirmDismiss: (direction) async {
-                HapticFeedback.mediumImpact();
-                _handleDeleteConfirmation(theme);
-                return false;
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Card(
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(24),
-                  ),
-                  child: Material(
-                    color: theme.cardTheme.color ?? theme.colorScheme.surface,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                      leading: CircleAvatar(
-                        backgroundColor: widget.schedule.active
-                            ? theme.colorScheme.primaryContainer
-                            : theme.colorScheme.surfaceContainerHighest,
-                        child: Icon(
-                          Icons.fitness_center_rounded,
-                          color: widget.schedule.active
-                              ? theme.colorScheme.onPrimaryContainer
-                              : theme.colorScheme.onSurfaceVariant,
-                          size: 20,
-                        ),
-                      ),
-                      title: Text(
-                        widget.schedule.workout,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
-                      ),
-                      subtitle: Text(
-                        '${widget.schedule.day} • ${widget.schedule.time}\n'
-                        '${widget.schedule.reminderEnabled ? 'Reminder ${widget.schedule.reminderMinutes} menit sebelumnya' : 'Reminder mati'}',
-                      ),
-                      isThreeLine: true,
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.center,
+                  return Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () => onDestinationSelected(index),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Switch(
-                            value: widget.schedule.active,
-                            onChanged: (_) => widget.onToggle(),
-                          ),
-                          IconButton(
-                            visualDensity: VisualDensity.compact,
-                            tooltip: widget.schedule.reminderEnabled ? 'Matikan reminder' : 'Nyalakan reminder',
-                            onPressed: widget.onReminderToggle,
-                            icon: Icon(
-                              widget.schedule.reminderEnabled
-                                  ? Icons.notifications_active_rounded
-                                  : Icons.notifications_off_outlined,
-                              color: widget.schedule.reminderEnabled
-                                  ? theme.colorScheme.primary
-                                  : theme.colorScheme.onSurfaceVariant,
+                          SizedBox(
+                            height: 32,
+                            child: AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 250),
+                              transitionBuilder: (child, animation) {
+                                return FadeTransition(opacity: animation, child: child);
+                              },
+                              // Key dipindah ke AnimatedScale (child langsung
+                              // dari AnimatedSwitcher) agar transisi fade tetap
+                              // terdeteksi saat isSelected berubah.
+                              child: AnimatedScale(
+                                key: ValueKey(isSelected),
+                                // Curve overshoot memberi efek "bounce" khas
+                                // seperti navbar Play Store saat icon dipilih.
+                                scale: isSelected ? 1.18 : 1.0,
+                                duration: const Duration(milliseconds: 400),
+                                curve: Curves.easeOutBack,
+                                child: Icon(
+                                  isSelected ? item.$2 : item.$1,
+                                  color: isSelected
+                                      ? theme.colorScheme.onSecondaryContainer
+                                      : theme.colorScheme.onSurfaceVariant,
+                                ),
+                              ),
                             ),
+                          ),
+                          const SizedBox(height: 4),
+                          AnimatedDefaultTextStyle(
+                            duration: const Duration(milliseconds: 250),
+                            style: theme.textTheme.labelSmall!.copyWith(
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w600,
+                              color: isSelected
+                                  ? theme.colorScheme.onSurface
+                                  : theme.colorScheme.onSurfaceVariant,
+                              fontFamily: 'Satoshi',
+                            ),
+                            child: Text(item.$3),
                           ),
                         ],
                       ),
                     ),
-                  ),
-                ),
+                  );
+                }).toList(),
               ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -2488,13 +2456,18 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
           if (_swipeProgress > 0)
             Positioned.fill(
               child: Container(
-                // Margin kiri 20 agar rata dengan card, sisi kanan bebas menyentuh tepi layar
-                margin: const EdgeInsets.only(left: 20, right: 0),
+                // Margin kiri berkurang saat card di-swipe agar background merah 
+                // menutup seluruh ruang kiri dan tidak ada area kosong (kepotong).
+                margin: EdgeInsets.only(
+                  left: 20 * (1 - _swipeProgress.clamp(0.0, 1.0)), 
+                  right: 0
+                ),
                 decoration: BoxDecoration(
                   color: bgColor,
-                  borderRadius: const BorderRadius.horizontal(
-                    left: Radius.circular(24),
-                    right: Radius.circular(0), // Siku di kanan karena menyentuh tepi layar
+                  borderRadius: BorderRadius.horizontal(
+                    // Radius kiri hilang saat margin menyentuh 0 agar rata dengan tepi layar
+                    left: Radius.circular(24 * (1 - _swipeProgress.clamp(0.0, 1.0))),
+                    right: const Radius.circular(0), // Siku di kanan karena menempel tepi layar
                   ),
                 ),
                 alignment: Alignment.centerRight,
