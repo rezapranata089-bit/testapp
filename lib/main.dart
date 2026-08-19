@@ -1247,9 +1247,6 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                       final baseStyle = theme.textTheme.labelMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
-                        shadows: [
-                          const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
-                        ],
                       );
                       final isLight = theme.brightness == Brightness.light;
                       return Stack(
