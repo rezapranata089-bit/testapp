@@ -1045,10 +1045,12 @@ class _AiPromptInput extends StatelessWidget {
       decoration: BoxDecoration(
         color: isDark ? const Color(0xFF1B1D1A) : Colors.white,
         borderRadius: BorderRadius.circular(32),
+        // Hard shadow (blurRadius 0) menggantikan blur shadow, agar tidak
+        // butuh proses blur namun tetap ada kesan kedalaman.
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(isDark ? 0.3 : 0.04),
-            blurRadius: 16,
+            color: Colors.black.withOpacity(isDark ? 0.3 : 0.08),
+            blurRadius: 0,
             offset: const Offset(0, 4),
           ),
         ],
@@ -1289,8 +1291,9 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                       color: Colors.white,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -1.0,
+                      // Hard shadow (blurRadius 0) menggantikan blur shadow.
                       shadows: [
-                        const Shadow(color: Colors.black26, blurRadius: 4, offset: Offset(0, 2))
+                        const Shadow(color: Colors.black38, blurRadius: 0, offset: Offset(0, 2))
                       ],
                     ),
                   ),
@@ -1301,8 +1304,9 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                       workoutOfTheDay.description,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: Colors.white.withOpacity(0.9),
+                        // Hard shadow (blurRadius 0) menggantikan blur shadow.
                         shadows: [
-                          const Shadow(color: Colors.black26, blurRadius: 2, offset: Offset(0, 1))
+                          const Shadow(color: Colors.black38, blurRadius: 0, offset: Offset(0, 1))
                         ],
                       ),
                     ),
