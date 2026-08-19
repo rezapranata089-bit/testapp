@@ -942,15 +942,25 @@ class _MainShellState extends State<MainShell> {
   Widget build(BuildContext context) {
     final pages = [
       _KeepAlivePage(
+        isActive: selectedIndex == 0,
         child: HomePage(
           appState: widget.appState,
           isActive: selectedIndex == 0,
           pageController: _pageController,
         ),
       ),
-      _KeepAlivePage(child: SchedulePage(appState: widget.appState)),
-      _KeepAlivePage(child: ProgressPage(appState: widget.appState)),
-      _KeepAlivePage(child: ProfilePage(appState: widget.appState)),
+      _KeepAlivePage(
+        isActive: selectedIndex == 1,
+        child: SchedulePage(appState: widget.appState),
+      ),
+      _KeepAlivePage(
+        isActive: selectedIndex == 2,
+        child: ProgressPage(appState: widget.appState),
+      ),
+      _KeepAlivePage(
+        isActive: selectedIndex == 3,
+        child: ProfilePage(appState: widget.appState),
+      ),
     ];
     return Scaffold(
       body: PageView(
@@ -1196,9 +1206,13 @@ class _FluidPillIndicatorState extends State<_FluidPillIndicator>
 }
 
 class _KeepAlivePage extends StatefulWidget {
-  const _KeepAlivePage({required this.child});
+  const _KeepAlivePage({
+    required this.child,
+    required this.isActive,
+  });
 
   final Widget child;
+  final bool isActive;
 
   @override
   State<_KeepAlivePage> createState() => _KeepAlivePageState();
@@ -1206,13 +1220,33 @@ class _KeepAlivePage extends StatefulWidget {
 
 class _KeepAlivePageState extends State<_KeepAlivePage>
     with AutomaticKeepAliveClientMixin {
+  Key _childKey = UniqueKey();
+
+  @override
+  void didUpdateWidget(covariant _KeepAlivePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isActive && !widget.isActive) {
+      // Tunggu animasi transisi tab selesai (~350ms), lalu reset state child
+      // secara background. Ini me-rebuild ListView, kembalikan scroll ke top,
+      // & reset animasi stagger tanpa terlihat blink oleh pengguna.
+      Future.delayed(const Duration(milliseconds: 400), () {
+        if (mounted && !widget.isActive) {
+          setState(() => _childKey = UniqueKey());
+        }
+      });
+    }
+  }
+
   @override
   bool get wantKeepAlive => true;
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return widget.child;
+    return KeyedSubtree(
+      key: _childKey,
+      child: widget.child,
+    );
   }
 }
 
@@ -2177,36 +2211,45 @@ class _ScrollRevealItemState extends State<_ScrollRevealItem>
     WidgetsBinding.instance.addPostFrameCallback((_) => _checkVisibility());
   }
 
+  @override
+  void didUpdateWidget(covariant _ScrollRevealItem oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Saat tab berpindah atau navigasi selesai, pastikan cek visibilitas ulang.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkVisibility());
+  }
+
   void _checkVisibility() {
     if (!mounted) return;
     final renderObject = context.findRenderObject();
     if (renderObject is! RenderBox || !renderObject.attached) return;
-    final viewportHeight = MediaQuery.of(context).size.height;
+    
+    final size = MediaQuery.of(context).size;
+    final viewportHeight = size.height;
+    final viewportWidth = size.width;
     final position = renderObject.localToGlobal(Offset.zero);
     final itemHeight = renderObject.size.height;
+    
     // Card dianggap "masuk layar" begitu sisi atasnya sudah berada dalam
-    // area layar (dengan sedikit margin agar animasi mulai terasa lebih
-    // awal), dan belum sepenuhnya lewat di sisi atas.
-    final isVisible = position.dy < viewportHeight * 0.92 &&
+    // area layar secara vertikal.
+    final isVisibleVertically = position.dy < viewportHeight * 0.92 &&
         (position.dy + itemHeight) > 0;
+        
+    // Cek horizontal untuk mendeteksi apakah sedang berada di page/tab aktif.
+    // Toleransi 0.85 (85% layar) dipakai agar manual swipe tetap terdeteksi lancar.
+    final isVisibleHorizontally = position.dx > -viewportWidth * 0.85 && 
+        position.dx < viewportWidth * 0.85;
+
+    final isVisible = isVisibleVertically && isVisibleHorizontally;
 
     if (!_revealed && isVisible) {
       _revealed = true;
       final delay = Duration(milliseconds: 70 * widget.staggerIndex);
       Future.delayed(delay, () {
-        // Cek ulang _revealed di sini: kalau selama delay card sudah
-        // ter-scroll keluar layar lagi (reset di bawah), batalkan supaya
-        // tidak forward() untuk state yang sudah tidak relevan lagi.
         if (mounted && _revealed) _controller.forward(from: 0);
       });
-    } else if (_revealed && !isVisible) {
-      // Card sudah keluar area layar sepenuhnya -- reset agar animasi
-      // fade+slide+bounce-nya bisa terulang lagi saat di-scroll masuk ke
-      // layar berikutnya (termasuk saat tab dikunjungi ulang, karena
-      // AutomaticKeepAlive membuat state ini tidak pernah dibuang).
-      _revealed = false;
-      _controller.value = 0;
     }
+    // Animasi stagger kini diatur hanya jalan sekali. Reset berulang (saat scroll up/down) dihapus.
+    // Reset akan terjadi secara global saat tab menjadi tidak aktif di background.
   }
 
   @override
