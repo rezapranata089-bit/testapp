@@ -1118,9 +1118,12 @@ class HomePage extends StatelessWidget {
           ...workoutOfTheDay.exercises.asMap().entries.map(
                 (entry) => Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
-                  child: ExerciseListTile(
-                    index: entry.key + 1,
-                    exercise: entry.value,
+                  child: _ScrollRevealItem(
+                    staggerIndex: entry.key,
+                    child: ExerciseListTile(
+                      index: entry.key + 1,
+                      exercise: entry.value,
+                    ),
                   ),
                 ),
               ),
@@ -1724,6 +1727,96 @@ class _WhiteMeta extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// Membungkus tiap card exercise agar muncul dengan animasi fade + slide up
+// tepat saat card itu masuk ke area layar saat di-scroll, dengan delay
+// bertahap (stagger) antar card agar terasa muncul satu per satu.
+//
+// Memakai ScrollPosition dari Scrollable terdekat (bukan NotificationListener)
+// karena widget ini berada DI DALAM ListView -- notifikasi scroll hanya
+// bisa ditangkap oleh listener yang berada di ATAS Scrollable, sedangkan
+// ScrollPosition bisa didengarkan langsung oleh descendant seperti ini.
+class _ScrollRevealItem extends StatefulWidget {
+  const _ScrollRevealItem({
+    required this.child,
+    required this.staggerIndex,
+  });
+
+  final Widget child;
+  final int staggerIndex;
+
+  @override
+  State<_ScrollRevealItem> createState() => _ScrollRevealItemState();
+}
+
+class _ScrollRevealItemState extends State<_ScrollRevealItem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 550),
+  );
+  late final Animation<double> _fade = CurvedAnimation(
+    parent: _controller,
+    curve: Curves.easeOut,
+  );
+  late final Animation<Offset> _slide = Tween<Offset>(
+    begin: const Offset(0, 0.12),
+    end: Offset.zero,
+  ).animate(CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic));
+
+  ScrollPosition? _scrollPosition;
+  bool _revealed = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final newPosition = Scrollable.of(context).position;
+    if (!identical(newPosition, _scrollPosition)) {
+      _scrollPosition?.removeListener(_checkVisibility);
+      _scrollPosition = newPosition;
+      _scrollPosition?.addListener(_checkVisibility);
+    }
+    // Cek juga setelah frame pertama, untuk card yang sudah langsung
+    // terlihat di layar tanpa perlu di-scroll sama sekali.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _checkVisibility());
+  }
+
+  void _checkVisibility() {
+    if (_revealed || !mounted) return;
+    final renderObject = context.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.attached) return;
+    final viewportHeight = MediaQuery.of(context).size.height;
+    final position = renderObject.localToGlobal(Offset.zero);
+    // Card dianggap "masuk layar" begitu sisi atasnya sudah berada dalam
+    // area layar (dengan sedikit margin agar animasi mulai terasa lebih
+    // awal, sebelum card benar-benar mepet ke bawah layar).
+    if (position.dy < viewportHeight * 0.92) {
+      _revealed = true;
+      final delay = Duration(milliseconds: 70 * widget.staggerIndex);
+      Future.delayed(delay, () {
+        if (mounted) _controller.forward();
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollPosition?.removeListener(_checkVisibility);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _fade,
+      child: SlideTransition(
+        position: _slide,
+        child: widget.child,
+      ),
     );
   }
 }
