@@ -162,15 +162,18 @@ class ScheduleItem {
   final int reminderMinutes;
 
   ScheduleItem copyWith({
+    String? day,
+    String? time,
+    String? workout,
     bool? active,
     bool? reminderEnabled,
     int? reminderMinutes,
   }) =>
       ScheduleItem(
         id: id,
-        day: day,
-        time: time,
-        workout: workout,
+        day: day ?? this.day,
+        time: time ?? this.time,
+        workout: workout ?? this.workout,
         active: active ?? this.active,
         reminderEnabled: reminderEnabled ?? this.reminderEnabled,
         reminderMinutes: reminderMinutes ?? this.reminderMinutes,
@@ -545,6 +548,30 @@ class WorkoutAppState extends ChangeNotifier {
 
   void removeSchedule(String id) {
     schedules = schedules.where((item) => item.id != id).toList();
+    notifyListeners();
+    unawaited(_persist());
+  }
+
+  void updateSchedule(
+    String id, {
+    required String day,
+    required String time,
+    required String workout,
+    required bool reminderEnabled,
+    required int reminderMinutes,
+  }) {
+    schedules = schedules.map((item) {
+      if (item.id == id) {
+        return item.copyWith(
+          day: day,
+          time: time,
+          workout: workout,
+          reminderEnabled: reminderEnabled,
+          reminderMinutes: reminderMinutes,
+        );
+      }
+      return item;
+    }).toList();
     notifyListeners();
     unawaited(_persist());
   }
@@ -2341,6 +2368,168 @@ class _ScheduleListState extends State<_ScheduleList> {
     super.dispose();
   }
 
+  Future<void> _showEditSchedule(BuildContext context, ScheduleItem schedule) async {
+    final dayController = ValueNotifier(schedule.day);
+    final workoutController = ValueNotifier(schedule.workout);
+    
+    TimeOfDay parseTime(String timeString) {
+      try {
+        final clean = timeString.replaceAll(RegExp(r'[^0-9:]'), '').trim();
+        final parts = clean.split(':');
+        int hour = int.parse(parts[0]);
+        int minute = int.parse(parts[1]);
+        if (timeString.toLowerCase().contains('pm') && hour < 12) hour += 12;
+        if (timeString.toLowerCase().contains('am') && hour == 12) hour = 0;
+        return TimeOfDay(hour: hour, minute: minute);
+      } catch (_) {
+        return const TimeOfDay(hour: 18, minute: 30);
+      }
+    }
+    
+    TimeOfDay selectedTime = parseTime(schedule.time);
+    bool reminderEnabled = schedule.reminderEnabled;
+    int reminderMinutes = schedule.reminderMinutes;
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Padding(
+              padding: EdgeInsets.fromLTRB(
+                20,
+                8,
+                20,
+                MediaQuery.of(context).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Edit jadwal',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w900,
+                        ),
+                  ),
+                  const SizedBox(height: 20),
+                  DropdownButtonFormField<String>(
+                    value: dayController.value,
+                    decoration: const InputDecoration(labelText: 'Hari'),
+                    items: const [
+                      'Senin',
+                      'Selasa',
+                      'Rabu',
+                      'Kamis',
+                      'Jumat',
+                      'Sabtu',
+                      'Minggu',
+                    ]
+                        .map((day) =>
+                            DropdownMenuItem(value: day, child: Text(day)))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) dayController.value = value;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  DropdownButtonFormField<String>(
+                    value: workoutController.value,
+                    decoration: const InputDecoration(labelText: 'Workout'),
+                    items: const ['Full Body', 'Upper Body', 'Lower Body']
+                        .map((workout) => DropdownMenuItem(
+                              value: workout,
+                              child: Text(workout),
+                            ))
+                        .toList(),
+                    onChanged: (value) {
+                      if (value != null) workoutController.value = value;
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Waktu'),
+                    subtitle: Text(selectedTime.format(context)),
+                    leading: const Icon(Icons.schedule_rounded),
+                    trailing: IconButton(
+                      onPressed: () async {
+                        final picked = await showTimePicker(
+                          context: context,
+                          initialTime: selectedTime,
+                        );
+                        if (picked != null) {
+                          setModalState(() => selectedTime = picked);
+                        }
+                      },
+                      icon: const Icon(Icons.edit_rounded),
+                    ),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Aktifkan reminder'),
+                    subtitle: Text('$reminderMinutes menit sebelum latihan'),
+                    value: reminderEnabled,
+                    onChanged: (value) {
+                      setModalState(() => reminderEnabled = value);
+                    },
+                  ),
+                  if (reminderEnabled)
+                    DropdownButtonFormField<int>(
+                      value: reminderMinutes,
+                      decoration: const InputDecoration(
+                        labelText: 'Ingatkan saya',
+                      ),
+                      items: const [5, 15, 30, 60]
+                          .map(
+                            (minutes) => DropdownMenuItem(
+                              value: minutes,
+                              child: Text('$minutes menit sebelumnya'),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: (value) {
+                        if (value != null) {
+                          setModalState(() => reminderMinutes = value);
+                        }
+                      },
+                    ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: FilledButton(
+                      onPressed: () {
+                        widget.appState.updateSchedule(
+                          schedule.id,
+                          day: dayController.value,
+                          time: selectedTime.format(context),
+                          workout: workoutController.value,
+                          reminderEnabled: reminderEnabled,
+                          reminderMinutes: reminderMinutes,
+                        );
+                        Navigator.pop(sheetContext);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Jadwal berhasil diperbarui.'),
+                          ),
+                        );
+                      },
+                      child: const Text('Simpan Perubahan'),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+    dayController.dispose();
+    workoutController.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final schedules = widget.appState.schedules;
@@ -2358,6 +2547,7 @@ class _ScheduleListState extends State<_ScheduleList> {
                 schedules[i].id,
                 !schedules[i].reminderEnabled,
               ),
+              onEdit: () => _showEditSchedule(context, schedules[i]),
               onDelete: () => widget.appState.removeSchedule(schedules[i].id),
             ),
           ),
@@ -2373,6 +2563,7 @@ class _ScheduleTile extends StatefulWidget {
     required this.schedule,
     required this.onToggle,
     required this.onReminderToggle,
+    required this.onEdit,
     required this.onDelete,
   });
 
@@ -2381,6 +2572,7 @@ class _ScheduleTile extends StatefulWidget {
   final ScheduleItem schedule;
   final VoidCallback onToggle;
   final VoidCallback onReminderToggle;
+  final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
@@ -2444,28 +2636,48 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final intensity = (_swipeProgress / 0.5).clamp(0.0, 1.0);
-    final bgColor = Color.lerp(theme.colorScheme.errorContainer, theme.colorScheme.error, intensity) ?? theme.colorScheme.error;
-    final iconColor = Color.lerp(theme.colorScheme.onErrorContainer, theme.colorScheme.onError, intensity) ?? theme.colorScheme.onError;
+    
+    // Perhitungan warna Delete (Saat geser ke kiri)
+    final deleteIntensity = (_swipeProgress / 0.5).clamp(0.0, 1.0);
+    final deleteBgColor = Color.lerp(theme.colorScheme.errorContainer, theme.colorScheme.error, deleteIntensity) ?? theme.colorScheme.error;
+    final deleteIconColor = Color.lerp(theme.colorScheme.onErrorContainer, theme.colorScheme.onError, deleteIntensity) ?? theme.colorScheme.onError;
+
+    // Perhitungan warna Edit (Saat geser ke kanan)
+    final editIntensity = (_swipeProgress.abs() / 0.5).clamp(0.0, 1.0);
+    final editBgColor = Color.lerp(theme.colorScheme.primaryContainer, theme.colorScheme.primary, editIntensity) ?? theme.colorScheme.primary;
+    final editIconColor = Color.lerp(theme.colorScheme.onPrimaryContainer, theme.colorScheme.onPrimary, editIntensity) ?? theme.colorScheme.onPrimary;
 
     return SizeTransition(
       sizeFactor: _sizeAnimation,
       child: Stack(
         children: [
-          // CARD DELETE (BELAKANG)
+          // CARD EDIT (BELAKANG KIRI) - Muncul saat ditarik ke kanan
+          if (_swipeProgress < 0)
+            Positioned.fill(
+              child: Container(
+                margin: const EdgeInsets.symmetric(horizontal: 20),
+                decoration: BoxDecoration(
+                  color: editBgColor,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.only(left: 22),
+                child: Icon(Icons.edit_outlined, color: editIconColor),
+              ),
+            ),
+
+          // CARD DELETE (BELAKANG KANAN) - Muncul saat ditarik ke kiri
           if (_swipeProgress > 0)
             Positioned.fill(
               child: Container(
-                // Margin statis kiri kanan persis seperti card utama
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 decoration: BoxDecoration(
-                  color: bgColor,
-                  // Border radius statis di semua sisi persis seperti card utama
+                  color: deleteBgColor,
                   borderRadius: BorderRadius.circular(24),
                 ),
                 alignment: Alignment.centerRight,
                 padding: const EdgeInsets.only(right: 22),
-                child: Icon(Icons.delete_outline_rounded, color: iconColor),
+                child: Icon(Icons.delete_outline_rounded, color: deleteIconColor),
               ),
             ),
 
@@ -2478,9 +2690,9 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
               return Transform.translate(
                 offset: Offset(-pull * 14.0, 0),
                 child: Transform.scale(
-                  scaleY: 1 - (pull * 0.015),
+                  scaleY: 1 - (pull.abs() * 0.015),
                   child: Opacity(
-                    opacity: 1 - (pull * 0.12),
+                    opacity: 1 - (pull.abs() * 0.12),
                     child: dismissibleChild,
                   ),
                 ),
@@ -2488,20 +2700,27 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
             },
             child: Dismissible(
               key: ValueKey(widget.schedule.id),
-              direction: DismissDirection.endToStart,
+              direction: DismissDirection.horizontal,
               background: const SizedBox.shrink(),
               onUpdate: (details) {
-                if (_swipeProgress != details.progress && mounted) {
-                  setState(() => _swipeProgress = details.progress);
+                final isLeft = details.direction == DismissDirection.endToStart;
+                final realProgress = isLeft ? details.progress : -details.progress;
+
+                if (_swipeProgress != realProgress && mounted) {
+                  setState(() => _swipeProgress = realProgress);
                 }
                 widget.dragNotifier.value = _ScheduleDragState(
                   index: widget.index,
-                  progress: details.progress,
+                  progress: realProgress,
                 );
               },
               confirmDismiss: (direction) async {
                 HapticFeedback.mediumImpact();
-                _handleDeleteConfirmation(theme);
+                if (direction == DismissDirection.endToStart) {
+                  _handleDeleteConfirmation(theme);
+                } else if (direction == DismissDirection.startToEnd) {
+                  widget.onEdit();
+                }
                 return false;
               },
               child: Padding(
