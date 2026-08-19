@@ -2579,10 +2579,16 @@ class _ScheduleTile extends StatefulWidget {
   State<_ScheduleTile> createState() => _ScheduleTileState();
 }
 
-class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderStateMixin {
+class _ScheduleTileState extends State<_ScheduleTile> with TickerProviderStateMixin {
   double _swipeProgress = 0.0;
   late AnimationController _sizeController;
   late Animation<double> _sizeAnimation;
+
+  // Custom Drag State untuk efek "Berat" (Resistance)
+  double _dragExtent = 0.0;
+  bool _hapticTriggered = false;
+  late AnimationController _slideController;
+  late Animation<double> _slideAnimation;
 
   @override
   void initState() {
@@ -2596,12 +2602,91 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
       parent: _sizeController,
       curve: Curves.easeInOutCubic,
     );
+
+    _slideController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 300),
+    );
+    _slideController.addListener(() {
+      setState(() {
+        _dragExtent = _slideAnimation.value;
+        _swipeProgress = _dragExtent;
+        widget.dragNotifier.value = _ScheduleDragState(
+          index: widget.index,
+          progress: _swipeProgress,
+        );
+      });
+    });
   }
 
   @override
   void dispose() {
     _sizeController.dispose();
+    _slideController.dispose();
     super.dispose();
+  }
+
+  void _onHorizontalDragStart(DragStartDetails details) {
+    if (_slideController.isAnimating) {
+      _slideController.stop();
+    }
+  }
+
+  void _onHorizontalDragUpdate(DragUpdateDetails details) {
+    // Delta dinegatifkan agar swipe kiri (Delete) bernilai positif, sesuai sistem _swipeProgress
+    final delta = -details.primaryDelta! / MediaQuery.of(context).size.width;
+    double rawExtent = _dragExtent + delta;
+    
+    // Threshold 45% (Hampir setengah layar, terasa pas di jari untuk Trigger UX)
+    const limit = 0.45;
+    if (rawExtent.abs() > limit) {
+      final extra = rawExtent.abs() - limit;
+      // Berikan efek berat (gesekan/resistansi), jarak geser ditambah secara sangat lambat (dikali 0.15)
+      rawExtent = (limit + extra * 0.15) * rawExtent.sign;
+    }
+
+    setState(() {
+      _dragExtent = rawExtent;
+      _swipeProgress = _dragExtent;
+      widget.dragNotifier.value = _ScheduleDragState(
+        index: widget.index,
+        progress: _swipeProgress,
+      );
+    });
+
+    // Getar saat tepat menyentuh batas (threshold) 50%
+    if (_dragExtent.abs() >= limit && !_hapticTriggered) {
+      _hapticTriggered = true;
+      HapticFeedback.mediumImpact();
+    } else if (_dragExtent.abs() < limit) {
+      _hapticTriggered = false;
+    }
+  }
+
+  void _onHorizontalDragEnd(DragEndDetails details) {
+    const limit = 0.45;
+    final isDelete = _dragExtent >= limit; // Kiri
+    final isEdit = _dragExtent <= -limit;  // Kanan
+
+    // Begitu dilepas, card otomatis memantul (snap) kembali ke posisi semula (0.0)
+    _slideAnimation = Tween<double>(
+      begin: _dragExtent,
+      end: 0.0,
+    ).animate(CurvedAnimation(
+      parent: _slideController,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    _slideController.forward(from: 0).then((_) {
+      _hapticTriggered = false;
+    });
+
+    // Jika melewati batas, LANGSUNG panggil aksi/popup tanpa menunggu animasi selesai!
+    if (isDelete) {
+      _handleDeleteConfirmation(Theme.of(context));
+    } else if (isEdit) {
+      widget.onEdit();
+    }
   }
 
   Future<void> _handleDeleteConfirmation(ThemeData theme) async {
@@ -2698,34 +2783,18 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
                 ),
               );
             },
-            child: Dismissible(
+            child: GestureDetector(
               key: ValueKey(widget.schedule.id),
-              direction: DismissDirection.horizontal,
-              background: const SizedBox.shrink(),
-              onUpdate: (details) {
-                final isLeft = details.direction == DismissDirection.endToStart;
-                final realProgress = isLeft ? details.progress : -details.progress;
-
-                if (_swipeProgress != realProgress && mounted) {
-                  setState(() => _swipeProgress = realProgress);
-                }
-                widget.dragNotifier.value = _ScheduleDragState(
-                  index: widget.index,
-                  progress: realProgress,
-                );
-              },
-              confirmDismiss: (direction) async {
-                HapticFeedback.mediumImpact();
-                if (direction == DismissDirection.endToStart) {
-                  _handleDeleteConfirmation(theme);
-                } else if (direction == DismissDirection.startToEnd) {
-                  widget.onEdit();
-                }
-                return false;
-              },
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Card(
+              onHorizontalDragStart: _onHorizontalDragStart,
+              onHorizontalDragUpdate: _onHorizontalDragUpdate,
+              onHorizontalDragEnd: _onHorizontalDragEnd,
+              behavior: HitTestBehavior.opaque,
+              child: Transform.translate(
+                // Mengubah _swipeProgress menjadi posisi piksel aktual di layar
+                offset: Offset(-_swipeProgress * MediaQuery.of(context).size.width, 0),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Card(
                   clipBehavior: Clip.antiAlias,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
