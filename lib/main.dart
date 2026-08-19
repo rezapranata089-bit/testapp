@@ -803,20 +803,14 @@ class _SlidingNavigationBar extends StatelessWidget {
 
           return Stack(
             children: [
-              // Animasi geser (Pill Slider)
-              AnimatedPositioned(
-                duration: const Duration(milliseconds: 350),
-                curve: Curves.easeOutCubic, // Curve yang sama dengan PageView
-                left: (selectedIndex * itemWidth) + (itemWidth - indicatorWidth) / 2,
-                top: 14,
-                child: Container(
-                  width: indicatorWidth,
-                  height: indicatorHeight,
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.secondaryContainer,
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                ),
+              // Pill indicator dengan efek squash & stretch (fluid) saat
+              // berpindah tab, mirip navbar Play Store.
+              _FluidPillIndicator(
+                selectedIndex: selectedIndex,
+                itemWidth: itemWidth,
+                indicatorWidth: indicatorWidth,
+                indicatorHeight: indicatorHeight,
+                color: theme.colorScheme.secondaryContainer,
               ),
               // Ikon dan Label Text
               Row(
@@ -880,6 +874,120 @@ class _SlidingNavigationBar extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _FluidPillIndicator extends StatefulWidget {
+  const _FluidPillIndicator({
+    required this.selectedIndex,
+    required this.itemWidth,
+    required this.indicatorWidth,
+    required this.indicatorHeight,
+    required this.color,
+  });
+
+  final int selectedIndex;
+  final double itemWidth;
+  final double indicatorWidth;
+  final double indicatorHeight;
+  final Color color;
+
+  @override
+  State<_FluidPillIndicator> createState() => _FluidPillIndicatorState();
+}
+
+class _FluidPillIndicatorState extends State<_FluidPillIndicator>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late Animation<double> _positionAnimation;
+  late Animation<double> _stretchAnimation;
+  late int _previousIndex;
+
+  double _leftFor(int index) =>
+      (index * widget.itemWidth) + (widget.itemWidth - widget.indicatorWidth) / 2;
+
+  @override
+  void initState() {
+    super.initState();
+    _previousIndex = widget.selectedIndex;
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    _positionAnimation = AlwaysStoppedAnimation(_leftFor(widget.selectedIndex));
+    _stretchAnimation = const AlwaysStoppedAnimation(1.0);
+  }
+
+  @override
+  void didUpdateWidget(covariant _FluidPillIndicator oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final indexChanged = widget.selectedIndex != oldWidget.selectedIndex;
+    final layoutChanged = widget.itemWidth != oldWidget.itemWidth ||
+        widget.indicatorWidth != oldWidget.indicatorWidth;
+    if (indexChanged) {
+      final beginLeft = _leftFor(_previousIndex);
+      final endLeft = _leftFor(widget.selectedIndex);
+      _previousIndex = widget.selectedIndex;
+
+      _positionAnimation = Tween<double>(begin: beginLeft, end: endLeft).animate(
+        CurvedAnimation(parent: _controller, curve: Curves.easeOutCubic),
+      );
+      // Pill meregang mengikuti arah geser lalu menyusut kembali ke ukuran
+      // normal saat sampai, memberi kesan cair (fluid) seperti navbar
+      // Play Store, bukan sekadar geser kaku.
+      _stretchAnimation = TweenSequence<double>([
+        TweenSequenceItem(
+          tween: Tween(begin: 1.0, end: 1.4)
+              .chain(CurveTween(curve: Curves.easeOut)),
+          weight: 40,
+        ),
+        TweenSequenceItem(
+          tween: Tween(begin: 1.4, end: 1.0)
+              .chain(CurveTween(curve: Curves.easeOutBack)),
+          weight: 60,
+        ),
+      ]).animate(_controller);
+
+      _controller
+        ..stop()
+        ..reset()
+        ..forward();
+    } else if (layoutChanged) {
+      _positionAnimation = AlwaysStoppedAnimation(_leftFor(widget.selectedIndex));
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final stretch = _stretchAnimation.value;
+        final width = widget.indicatorWidth * stretch;
+        // Lebar diseimbangkan dari titik tengah pill (bukan dari sisi kiri)
+        // agar efek regang terasa memuai ke dua arah secara natural.
+        final left = _positionAnimation.value -
+            (width - widget.indicatorWidth) / 2;
+        return Positioned(
+          left: left,
+          top: 14,
+          child: Container(
+            width: width,
+            height: widget.indicatorHeight,
+            decoration: BoxDecoration(
+              color: widget.color,
+              borderRadius: BorderRadius.circular(16),
+            ),
+          ),
+        );
+      },
     );
   }
 }
