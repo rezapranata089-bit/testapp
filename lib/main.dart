@@ -1261,14 +1261,24 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
             ? (controller.page ?? 0.0)
             : 0.0;
         final distance = page.abs().clamp(0.0, 1.0);
-        final scale = 1.0 - (distance * 0.06);
-        final opacity = 1.0 - distance;
-        return Transform.scale(
-          scale: scale,
-          child: Opacity(
-            opacity: opacity,
-            child: child,
-          ),
+        // Hanya fade di tepi KANAN card: tipis saat diam, melebar saat
+        // digeser ke tab sebelah, biar edge-nya nge-blend bukan terpotong flat.
+        const baseFadeWidth = 0.05;
+        const swipeFadeWidth = 0.32;
+        final fadeWidth =
+            baseFadeWidth + (swipeFadeWidth - baseFadeWidth) * distance;
+        final fadeStart = (1.0 - fadeWidth).clamp(0.0, 1.0);
+        return ShaderMask(
+          shaderCallback: (bounds) {
+            return LinearGradient(
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight,
+              colors: const [Colors.white, Colors.white, Colors.transparent],
+              stops: [0.0, fadeStart, 1.0],
+            ).createShader(bounds);
+          },
+          blendMode: BlendMode.dstIn,
+          child: child,
         );
       },
       child: Stack(
