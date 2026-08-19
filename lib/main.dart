@@ -1093,8 +1093,8 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
               
               // Lottie ditempatkan di urutan PERTAMA agar dirender di BELAKANG teks
               Positioned(
-                right: -45, // Geser lebih ke kanan lagi
-                bottom: -24, // Turunkan sedikit lagi agar pas memijak progress bar
+                right: -37, // Geser sedikit ke kiri dari posisi sebelumnya
+                bottom: -16, // Dinaikkan sedikit dari posisi sebelumnya
                 child: SizedBox(
                   width: 280, 
                   height: 280,
@@ -1213,12 +1213,11 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                 colors: [
                   Colors.transparent,
                   Colors.black,
-                  Colors.black,
                   Colors.transparent,
                 ],
-                // Area fade bawah ditarik jauh lebih awal (mulai dari titik tengah / 50%) 
-                // agar transisi menghilangnya background wave sangat mulus ke warna dasar.
-                stops: [0.0, 0.05, 0.5, 1.0],
+                // Fade atas dibuat simetris dengan fade bawah agar transisi ke
+                // background di luar card terasa mulus di kedua sisi.
+                stops: [0.0, 0.5, 1.0],
               ).createShader(bounds);
             },
             blendMode: BlendMode.dstIn,
