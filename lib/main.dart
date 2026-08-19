@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -1958,21 +1959,12 @@ class _TiltCardState extends State<_TiltCard> {
   double _glareY = 0.5;
   bool _isActive = false;
   bool _isInteractive = false;
-  Timer? _holdTimer;
-  PointerEvent? _lastEvent;
 
-  @override
-  void dispose() {
-    _holdTimer?.cancel();
-    super.dispose();
-  }
-
-  void _updateTransform(PointerEvent event, {required double maxTilt}) {
-    _lastEvent = event;
+  void _updateTransform(Offset globalPosition, {required double maxTilt}) {
     final renderBox = context.findRenderObject() as RenderBox?;
     if (renderBox == null || !renderBox.attached) return;
     final size = renderBox.size;
-    final localPos = renderBox.globalToLocal(event.position);
+    final localPos = renderBox.globalToLocal(globalPosition);
     
     final x = ((localPos.dx / size.width) * 2 - 1).clamp(-1.0, 1.0);
     final y = ((localPos.dy / size.height) * 2 - 1).clamp(-1.0, 1.0);
@@ -1985,54 +1977,7 @@ class _TiltCardState extends State<_TiltCard> {
     });
   }
 
-  void _onPointerDown(PointerEvent event) {
-    // Mouse langsung masuk ke mode interaktif penuh tanpa perlu ditahan
-    if (event.kind == ui.PointerDeviceKind.mouse) {
-       setState(() {
-         _isInteractive = true;
-         _isActive = true;
-       });
-       _updateTransform(event, maxTilt: 8.0);
-       return;
-    }
-
-    _holdTimer?.cancel();
-    setState(() {
-      _isInteractive = false;
-      _isActive = true;
-    });
-    
-    // Saat disentuh awal (atau saat di-scroll), berikan miring sedikit saja
-    _updateTransform(event, maxTilt: 2.5);
-
-    _holdTimer = Timer(const Duration(seconds: 1), () {
-      if (mounted && _isActive) {
-        HapticFeedback.heavyImpact();
-        setState(() {
-          _isInteractive = true;
-        });
-        if (_lastEvent != null) {
-          // Begitu 1 detik berlalu, aktifkan kemiringan ekstrem/penuh
-          _updateTransform(_lastEvent!, maxTilt: 12.0);
-        }
-      }
-    });
-  }
-
-  void _onPointerMove(PointerEvent event) {
-    if (!_isActive) return;
-    
-    if (event.kind == ui.PointerDeviceKind.mouse || _isInteractive) {
-      // Jika mode interaktif aktif, kartu mengikuti pergerakan dengan bebas
-      _updateTransform(event, maxTilt: event.kind == ui.PointerDeviceKind.mouse ? 8.0 : 12.0);
-    } else {
-      // Jika masih dalam hitungan < 1 detik, kartu hanya merespons sangat tipis
-      _updateTransform(event, maxTilt: 2.5);
-    }
-  }
-
-  void _onPointerUpCancel(PointerEvent event) {
-    _holdTimer?.cancel();
+  void _resetTilt() {
     if (!mounted) return;
     setState(() {
       _tiltX = 0.0;
@@ -2042,12 +1987,48 @@ class _TiltCardState extends State<_TiltCard> {
     });
   }
 
+  void _onPointerDown(PointerEvent event) {
+    // Mouse langsung masuk ke mode interaktif penuh tanpa perlu ditahan
+    if (event.kind == ui.PointerDeviceKind.mouse) {
+       setState(() {
+         _isInteractive = true;
+         _isActive = true;
+       });
+       _updateTransform(event.position, maxTilt: 8.0);
+       return;
+    }
+
+    setState(() {
+      _isInteractive = false;
+      _isActive = true;
+    });
+    
+    // Saat disentuh awal (atau saat di-scroll), berikan miring sedikit saja
+    _updateTransform(event.position, maxTilt: 2.5);
+  }
+
+  void _onPointerMove(PointerEvent event) {
+    if (!_isActive) return;
+    
+    if (event.kind == ui.PointerDeviceKind.mouse || _isInteractive) {
+      // Jika mode interaktif aktif, kartu mengikuti pergerakan dengan bebas
+      _updateTransform(event.position, maxTilt: event.kind == ui.PointerDeviceKind.mouse ? 8.0 : 12.0);
+    } else {
+      // Jika masih dalam hitungan < 1 detik, kartu hanya merespons sangat tipis
+      _updateTransform(event.position, maxTilt: 2.5);
+    }
+  }
+
+  void _onPointerUpCancel(PointerEvent event) {
+    _resetTilt();
+  }
+
   void _onMouseHover(PointerEvent event) {
     setState(() {
       _isActive = true;
       _isInteractive = true;
     });
-    _updateTransform(event, maxTilt: 8.0);
+    _updateTransform(event.position, maxTilt: 8.0);
   }
 
   @override
@@ -2056,13 +2037,33 @@ class _TiltCardState extends State<_TiltCard> {
       onEnter: _onMouseHover,
       onHover: _onMouseHover,
       onExit: _onPointerUpCancel,
-      child: Listener(
+      child: RawGestureDetector(
+        gestures: {
+          // Menangkap long press setelah 1 detik. Begitu gesture ini aktif (win arena), 
+          // secara otomatis membatalkan/mencegah scroll dan drag parent.
+          LongPressGestureRecognizer: GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
+            () => LongPressGestureRecognizer(duration: const Duration(seconds: 1)),
+            (LongPressGestureRecognizer instance) {
+              instance.onLongPressStart = (details) {
+                if (mounted && _isActive) {
+                  HapticFeedback.heavyImpact();
+                  setState(() {
+                    _isInteractive = true;
+                  });
+                  _updateTransform(details.globalPosition, maxTilt: 12.0);
+                }
+              };
+            },
+          ),
+        },
         behavior: HitTestBehavior.translucent,
-        onPointerDown: _onPointerDown,
-        onPointerMove: _onPointerMove,
-        onPointerUp: _onPointerUpCancel,
-        onPointerCancel: _onPointerUpCancel,
-        child: TweenAnimationBuilder(
+        child: Listener(
+          behavior: HitTestBehavior.translucent,
+          onPointerDown: _onPointerDown,
+          onPointerMove: _onPointerMove,
+          onPointerUp: _onPointerUpCancel,
+          onPointerCancel: _onPointerUpCancel,
+          child: TweenAnimationBuilder(
           duration: Duration(milliseconds: _isActive ? 150 : 400),
           curve: _isActive ? Curves.easeOutCubic : Curves.easeOutBack,
           tween: Tween<Offset>(begin: Offset.zero, end: Offset(_tiltX, _tiltY)),
