@@ -2445,6 +2445,9 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final intensity = (_swipeProgress / 0.5).clamp(0.0, 1.0);
+    // Animasi edgeProgress membuat background merah bertransisi dari 
+    // bentuk card melengkung (sebelum swipe) ke tepi layar yang rata (saat diswipe)
+    final edgeProgress = (_swipeProgress * 4).clamp(0.0, 1.0);
     final bgColor = Color.lerp(theme.colorScheme.errorContainer, theme.colorScheme.error, intensity) ?? theme.colorScheme.error;
     final iconColor = Color.lerp(theme.colorScheme.onErrorContainer, theme.colorScheme.onError, intensity) ?? theme.colorScheme.onError;
 
@@ -2456,22 +2459,22 @@ class _ScheduleTileState extends State<_ScheduleTile> with SingleTickerProviderS
           if (_swipeProgress > 0)
             Positioned.fill(
               child: Container(
-                // Margin kiri berkurang saat card di-swipe agar background merah 
-                // menutup seluruh ruang kiri dan tidak ada area kosong (kepotong).
                 margin: EdgeInsets.only(
-                  left: 20 * (1 - _swipeProgress.clamp(0.0, 1.0)), 
-                  right: 0
+                  left: 20,
+                  // Margin kanan mengecil agar menyentuh tepi layar secara fluid
+                  right: 20 * (1 - edgeProgress),
                 ),
                 decoration: BoxDecoration(
                   color: bgColor,
                   borderRadius: BorderRadius.horizontal(
-                    // Radius kiri hilang saat margin menyentuh 0 agar rata dengan tepi layar
-                    left: Radius.circular(24 * (1 - _swipeProgress.clamp(0.0, 1.0))),
-                    right: const Radius.circular(0), // Siku di kanan karena menempel tepi layar
+                    left: const Radius.circular(24),
+                    // Radius kanan berawal melengkung (mengikuti card) lalu menjadi rata (0) saat menyentuh tepi
+                    right: Radius.circular(24 * (1 - edgeProgress)),
                   ),
                 ),
                 alignment: Alignment.centerRight,
-                padding: const EdgeInsets.only(right: 28),
+                // Padding bergeser sedikit agar posisi icon tetap terasa natural saat background meregang
+                padding: EdgeInsets.only(right: 20 + (8 * edgeProgress)),
                 child: Icon(Icons.delete_outline_rounded, color: iconColor),
               ),
             ),
