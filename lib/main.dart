@@ -1766,6 +1766,122 @@ class _WhiteMeta extends StatelessWidget {
 // karena widget ini berada DI DALAM ListView -- notifikasi scroll hanya
 // bisa ditangkap oleh listener yang berada di ATAS Scrollable, sedangkan
 // ScrollPosition bisa didengarkan langsung oleh descendant seperti ini.
+class _TiltCard extends StatefulWidget {
+  const _TiltCard({required this.child, this.borderRadius = 24.0, super.key});
+
+  final Widget child;
+  final double borderRadius;
+
+  @override
+  State<_TiltCard> createState() => _TiltCardState();
+}
+
+class _TiltCardState extends State<_TiltCard> {
+  double _tiltX = 0.0;
+  double _tiltY = 0.0;
+  double _glareX = 0.5;
+  double _glareY = 0.5;
+  bool _isActive = false;
+
+  void _updatePointer(PointerEvent event) {
+    final renderBox = context.findRenderObject() as RenderBox?;
+    if (renderBox == null) return;
+    final size = renderBox.size;
+    final localPos = renderBox.globalToLocal(event.position);
+    
+    final x = ((localPos.dx / size.width) * 2 - 1).clamp(-1.0, 1.0);
+    final y = ((localPos.dy / size.height) * 2 - 1).clamp(-1.0, 1.0);
+
+    setState(() {
+      // Rotasi 3D ke arah pointer (max kemiringan 8 derajat)
+      _tiltX = -y * 8.0; 
+      _tiltY = x * 8.0;
+      _glareX = (localPos.dx / size.width).clamp(0.0, 1.0);
+      _glareY = (localPos.dy / size.height).clamp(0.0, 1.0);
+      _isActive = true;
+    });
+  }
+
+  void _resetPointer(PointerEvent event) {
+    setState(() {
+      _tiltX = 0.0;
+      _tiltY = 0.0;
+      _isActive = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: _updatePointer,
+      onHover: _updatePointer,
+      onExit: _resetPointer,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _updatePointer,
+        onPointerMove: _updatePointer,
+        onPointerUp: _resetPointer,
+        onPointerCancel: _resetPointer,
+        child: TweenAnimationBuilder(
+          duration: Duration(milliseconds: _isActive ? 100 : 400),
+          curve: _isActive ? Curves.easeOutCubic : Curves.easeOutBack,
+          tween: Tween<Offset>(begin: Offset.zero, end: Offset(_tiltX, _tiltY)),
+          builder: (context, Offset tilt, child) {
+            final matrix = Matrix4.identity()
+              ..setEntry(3, 2, 0.001) // perspective
+              ..rotateX(tilt.dx * 3.14159 / 180)
+              ..rotateY(tilt.dy * 3.14159 / 180);
+
+            return Transform(
+              transform: matrix,
+              alignment: Alignment.center,
+              child: child,
+            );
+          },
+          child: Stack(
+            clipBehavior: Clip.none,
+            fit: StackFit.passthrough,
+            children: [
+              widget.child,
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(widget.borderRadius),
+                    child: AnimatedOpacity(
+                      opacity: _isActive ? 1.0 : 0.0,
+                      duration: const Duration(milliseconds: 300),
+                      child: TweenAnimationBuilder(
+                        duration: Duration(milliseconds: _isActive ? 100 : 300),
+                        tween: Tween<Offset>(begin: const Offset(0.5, 0.5), end: Offset(_glareX, _glareY)),
+                        builder: (context, Offset glarePos, _) {
+                          return Container(
+                            decoration: BoxDecoration(
+                              gradient: RadialGradient(
+                                center: FractionalOffset(glarePos.dx, glarePos.dy),
+                                radius: 1.5,
+                                colors: [
+                                  Colors.white.withOpacity(0.32),
+                                  Colors.white.withOpacity(0.06),
+                                  Colors.transparent,
+                                ],
+                                stops: const [0.0, 0.5, 1.0],
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _ScrollRevealItem extends StatefulWidget {
   const _ScrollRevealItem({
     required this.child,
@@ -1882,10 +1998,11 @@ class ExerciseListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Row(
+    return _TiltCard(
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
           children: [
             Container(
               width: 60,
@@ -1933,18 +2050,18 @@ class ExerciseListTile extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 4),
-                Text(
-                  'rest ${exercise.restSeconds}s',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+            Text(
+              'rest ${exercise.restSeconds}s',
+              style: theme.textTheme.labelSmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
             ),
           ],
         ),
-      ),
-    );
+      ],
+    ),
+  ),
+));
   }
 }
 
@@ -1956,8 +2073,9 @@ class _NextScheduleCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Card(
-      child: ListTile(
+    return _TiltCard(
+      child: Card(
+        child: ListTile(
         contentPadding:
             const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         leading: CircleAvatar(
@@ -1972,12 +2090,12 @@ class _NextScheduleCard extends StatelessWidget {
           style: TextStyle(fontWeight: FontWeight.w800),
         ),
         subtitle: Text('${schedule.day}, ${schedule.time} • ${schedule.workout}'),
-        trailing: Icon(
-          Icons.chevron_right_rounded,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
+    trailing: Icon(
+      Icons.chevron_right_rounded,
+      color: theme.colorScheme.onSurfaceVariant,
+    ),
+  ),
+));
   }
 }
 
@@ -2909,14 +3027,15 @@ class _ScheduleTileState extends State<_ScheduleTile> with TickerProviderStateMi
               onHorizontalDragUpdate: _onHorizontalDragUpdate,
               onHorizontalDragEnd: _onHorizontalDragEnd,
               behavior: HitTestBehavior.opaque,
-              child: Transform.translate(
-                // Mengubah _swipeProgress menjadi posisi piksel aktual di layar
-                offset: Offset(-_swipeProgress * MediaQuery.of(context).size.width, 0),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Card(
-                  clipBehavior: Clip.antiAlias,
-                  shape: RoundedRectangleBorder(
+          child: Transform.translate(
+            // Mengubah _swipeProgress menjadi posisi piksel aktual di layar
+            offset: Offset(-_swipeProgress * MediaQuery.of(context).size.width, 0),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: _TiltCard(
+                child: Card(
+                clipBehavior: Clip.antiAlias,
+                shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Material(
@@ -2991,23 +3110,24 @@ class _ScheduleTileState extends State<_ScheduleTile> with TickerProviderStateMi
                                 ],
                               ),
                             ),
-                            Switch(
-                              value: widget.schedule.active,
-                              onChanged: (_) => widget.onToggle(),
-                            ),
-                          ],
+                        Switch(
+                          value: widget.schedule.active,
+                          onChanged: (_) => widget.onToggle(),
                         ),
-                      ),
+                      ],
                     ),
                   ),
                 ),
               ),
             ),
-            ),
           ),
-        ],
+          ),
+        ),
+        ),
       ),
-    );
+    ],
+  ),
+);
   }
 }
 
