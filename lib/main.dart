@@ -136,6 +136,26 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.cancel(id.hashCode);
   }
 
+  Future<void> showTestNotification() async {
+    if (kIsWeb) return;
+    await requestPermission();
+    await _flutterLocalNotificationsPlugin.show(
+      9999, // ID unik bebas untuk testing
+      'Test Notifikasi Berhasil! 🔔',
+      'Sistem notifikasi di HP kamu berfungsi dengan baik.',
+      const NotificationDetails(
+        android: AndroidNotificationDetails(
+          'workout_reminder_channel',
+          'Workout Reminders',
+          channelDescription: 'Notifikasi untuk jadwal latihanmu',
+          importance: Importance.max,
+          priority: Priority.high,
+        ),
+        iOS: DarwinNotificationDetails(),
+      ),
+    );
+  }
+
   Future<void> syncAllReminders(List<ScheduleItem> schedules) async {
     if (kIsWeb) return;
     await _flutterLocalNotificationsPlugin.cancelAll();
@@ -4244,6 +4264,25 @@ class ProfilePage extends StatelessWidget {
           Card(
             child: Column(
               children: [
+                ListTile(
+                  onTap: () {
+                    NotificationService.instance.showTestNotification();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Mengirim notifikasi test...'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+                  leading: const Icon(Icons.notifications_active_outlined),
+                  title: const Text(
+                    'Test Notifikasi',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Kirim notifikasi sekarang untuk cek sistem'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                ),
+                const Divider(height: 1, indent: 68),
                 ListTile(
                   leading: const Icon(Icons.cloud_off_outlined),
                   title: const Text(
