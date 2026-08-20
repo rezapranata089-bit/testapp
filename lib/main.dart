@@ -1179,6 +1179,7 @@ class _SlidingNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isLight = theme.brightness == Brightness.light;
     final items = [
       (Icons.home_outlined, Icons.home_rounded, 'Home'),
       (Icons.calendar_month_outlined, Icons.calendar_month_rounded, 'Jadwal'),
@@ -1186,9 +1187,11 @@ class _SlidingNavigationBar extends StatelessWidget {
       (Icons.person_outline_rounded, Icons.person_rounded, 'Profil'),
     ];
 
-    // Background default dari Material 3 Navigation Bar
-    final bgColor = theme.navigationBarTheme.backgroundColor ?? 
-                    theme.colorScheme.surfaceContainer;
+    // Background putih murni dan bayangan halus di mode terang agar terpisah dari root gradient
+    final bgColor = isLight
+        ? Colors.white
+        : (theme.navigationBarTheme.backgroundColor ?? 
+           theme.colorScheme.surfaceContainer);
 
     return Container(
       height: 80 + MediaQuery.of(context).padding.bottom,
@@ -1198,6 +1201,15 @@ class _SlidingNavigationBar extends StatelessWidget {
         borderRadius: const BorderRadius.vertical(
           top: Radius.circular(32),
         ),
+        boxShadow: isLight
+            ? [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.06),
+                  blurRadius: 16,
+                  offset: const Offset(0, -4),
+                ),
+              ]
+            : null,
       ),
       clipBehavior: Clip.antiAlias,
       child: LayoutBuilder(
