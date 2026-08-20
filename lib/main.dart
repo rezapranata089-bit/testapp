@@ -206,18 +206,30 @@ class NotificationService {
     if (kIsWeb) return 'Tidak tersedia di web.';
     final buffer = StringBuffer();
 
-    final androidPlugin = _flutterLocalNotificationsPlugin
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
-    final canExact = await androidPlugin?.canScheduleExactNotifications() ?? true;
-    buffer.writeln('Izin exact alarm: ${canExact ? "AKTIF" : "TIDAK AKTIF"}');
-    buffer.writeln('Waktu sekarang (device): ${tz.TZDateTime.now(tz.local)}');
+    // Setiap bagian dibungkus try-catch sendiri-sendiri, agar kalau satu
+    // bagian gagal (misal method tidak didukung versi plugin di device),
+    // bagian lain tetap tampil dan errornya terlihat -- bukan hilang diam-diam.
+    try {
+      final androidPlugin = _flutterLocalNotificationsPlugin
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+      final canExact = await androidPlugin?.canScheduleExactNotifications() ?? true;
+      buffer.writeln('Izin exact alarm: ${canExact ? "AKTIF" : "TIDAK AKTIF"}');
+    } catch (e) {
+      buffer.writeln('Izin exact alarm: GAGAL DICEK ($e)');
+    }
+
+    try {
+      buffer.writeln('Waktu sekarang (device): ${tz.TZDateTime.now(tz.local)}');
+    } catch (e) {
+      buffer.writeln('Waktu sekarang: GAGAL DIAMBIL ($e)');
+    }
     buffer.writeln('');
 
     for (final s in schedules) {
-      final dayOfWeek = _dayOfWeekToInt(s.day);
-      int hour = 18;
-      int minute = 30;
       try {
+        final dayOfWeek = _dayOfWeekToInt(s.day);
+        int hour = 18;
+        int minute = 30;
         final clean = s.time.replaceAll(RegExp(r'[^0-9:]'), '').trim();
         final parts = clean.split(':');
         if (parts.length >= 2) {
@@ -226,23 +238,30 @@ class NotificationService {
           if (s.time.toLowerCase().contains('pm') && hour < 12) hour += 12;
           if (s.time.toLowerCase().contains('am') && hour == 12) hour = 0;
         }
-      } catch (_) {}
-      final next =
-          _nextInstanceOfWorkout(dayOfWeek, hour, minute, s.reminderMinutes);
-      buffer.writeln('${s.workout} (${s.day} • ${s.time})');
-      buffer.writeln('  aktif: ${s.active}, reminder: ${s.reminderEnabled}');
-      buffer.writeln('  jadwal berikutnya (dihitung): $next');
-      buffer.writeln('');
+        final next =
+            _nextInstanceOfWorkout(dayOfWeek, hour, minute, s.reminderMinutes);
+        buffer.writeln('${s.workout} (${s.day} • ${s.time})');
+        buffer.writeln('  aktif: ${s.active}, reminder: ${s.reminderEnabled}');
+        buffer.writeln('  jadwal berikutnya (dihitung): $next');
+        buffer.writeln('');
+      } catch (e) {
+        buffer.writeln('${s.workout}: GAGAL DIHITUNG ($e)');
+        buffer.writeln('');
+      }
     }
 
-    final pending =
-        await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
-    buffer.writeln('Terdaftar di sistem OS: ${pending.length} notifikasi');
-    for (final p in pending) {
-      buffer.writeln('  id=${p.id} title=${p.title}');
-    }
-    if (pending.isEmpty) {
-      buffer.writeln('  (kosong -> penjadwalan gagal didaftarkan ke OS)');
+    try {
+      final pending =
+          await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
+      buffer.writeln('Terdaftar di sistem OS: ${pending.length} notifikasi');
+      for (final p in pending) {
+        buffer.writeln('  id=${p.id} title=${p.title}');
+      }
+      if (pending.isEmpty) {
+        buffer.writeln('  (kosong -> penjadwalan gagal didaftarkan ke OS)');
+      }
+    } catch (e) {
+      buffer.writeln('Daftar notifikasi OS: GAGAL DIAMBIL ($e)');
     }
 
     return buffer.toString();
@@ -4423,8 +4442,16 @@ class ProfilePage extends StatelessWidget {
                 const Divider(height: 1, indent: 68),
                 ListTile(
                   onTap: () async {
-                    final info = await NotificationService.instance
-                        .debugScheduleInfo(appState.schedules);
+                    String info;
+                    try {
+                      info = await NotificationService.instance
+                          .debugScheduleInfo(appState.schedules);
+                    } catch (e, st) {
+                      // Menangkap error apa pun di level luar sebagai jaring
+                      // pengaman terakhir, supaya dialog tetap muncul dan
+                      // penyebab kegagalan bisa terlihat langsung di layar.
+                      info = 'TERJADI ERROR:\n$e\n\n$st';
+                    }
                     if (!context.mounted) return;
                     showDialog<void>(
                       context: context,
