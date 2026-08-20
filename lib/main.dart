@@ -1802,49 +1802,19 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                       final labelText = widget.appState.completedToday
                           ? 'LATIHAN SELESAI'
                           : 'LATIHAN HARI INI';
-                      // Warna dicampur ke arah putih agar tetap kontras di atas
-                      // background wave yang gelap, tapi tetap terasa mengikuti
-                      // warna aksen yang dipilih pengguna.
-                      final fillColor = Color.lerp(
-                            widget.appState.accentColor,
-                            Colors.white,
-                            0.55,
-                          ) ??
-                          Colors.white;
+                      final isLight = theme.brightness == Brightness.light;
+                      // Di mode terang gunakan warna aksen yang digelapkan, 
+                      // di mode gelap dicampur putih agar tetap kontras.
+                      final fillColor = isLight
+                          ? (Color.lerp(widget.appState.accentColor, Colors.black, 0.2) ?? widget.appState.accentColor)
+                          : (Color.lerp(widget.appState.accentColor, Colors.white, 0.55) ?? Colors.white);
                       final baseStyle = theme.textTheme.labelMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
                       );
-                      final isLight = theme.brightness == Brightness.light;
-                      return Stack(
-                        children: [
-                          // Lapisan stroke (border hitam tipis) hanya dirender
-                          // di mode light, karena di mode dark teks sudah cukup
-                          // kontras tanpa border.
-                          if (isLight)
-                            Text(
-                              labelText,
-                              style: baseStyle?.copyWith(
-                                foreground: Paint()
-                                  ..style = PaintingStyle.stroke
-                                  ..strokeWidth = 1.2
-                                  // Warna border mengikuti aksen, digelapkan
-                                  // sedikit ke arah hitam agar tetap terlihat
-                                  // sebagai outline, bukan hitam polos.
-                                  ..color = (Color.lerp(
-                                        widget.appState.accentColor,
-                                        Colors.black,
-                                        0.45,
-                                      ) ??
-                                      widget.appState.accentColor)
-                                      .withOpacity(0.65),
-                              ),
-                            ),
-                          Text(
-                            labelText,
-                            style: baseStyle?.copyWith(color: fillColor),
-                          ),
-                        ],
+                      return Text(
+                        labelText,
+                        style: baseStyle?.copyWith(color: fillColor),
                       );
                     },
                   ),
