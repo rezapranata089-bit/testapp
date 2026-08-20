@@ -49,6 +49,8 @@ class NotificationService {
     final androidPlugin = _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
     await androidPlugin?.requestNotificationsPermission();
+    // Meminta izin jadwal akurat untuk Android 12+ 
+    await androidPlugin?.requestExactAlarmsPermission();
 
     final iosPlugin = _flutterLocalNotificationsPlugin
         .resolvePlatformSpecificImplementation<IOSFlutterLocalNotificationsPlugin>();
@@ -80,8 +82,12 @@ class NotificationService {
     // Terapkan offset pengingat (contoh: mundur 30 menit)
     scheduledDate = scheduledDate.subtract(Duration(minutes: offsetMinutes));
     
-    // Jika waktu yang dijadwalkan sudah terlewat di hari ini, pindahkan ke minggu depan
-    if (scheduledDate.isBefore(now)) {
+    // Beri toleransi 1 menit. Jika kamu mensave jadwal pada jam 11:07:15, 
+    // jadwal tidak akan otomatis dipindah ke minggu depan (karena 11:07:00 dianggap telat).
+    final toleranceNow = now.subtract(const Duration(minutes: 1));
+    
+    // Jika waktu yang dijadwalkan sudah terlewat hari ini, pindahkan ke minggu depan
+    if (scheduledDate.isBefore(toleranceNow)) {
       scheduledDate = scheduledDate.add(const Duration(days: 7));
     }
     return scheduledDate;
