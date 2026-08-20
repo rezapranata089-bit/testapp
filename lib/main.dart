@@ -977,19 +977,19 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
       seedColor: seed,
       brightness: brightness,
       surface: brightness == Brightness.light
-          ? const Color(0xFFF9F8F6)
+          ? const Color(0xFFF4F3F0)
           : const Color(0xFF111310),
     );
     return ThemeData(
       useMaterial3: true,
       brightness: brightness,
-        colorScheme: scheme,
-    scaffoldBackgroundColor: scheme.surface,
-    fontFamily: 'Satoshi',
-    textTheme: ThemeData(brightness: brightness).textTheme.apply(
-          fontFamily: 'Satoshi',
-        ),
-    appBarTheme: AppBarTheme(
+      colorScheme: scheme,
+      scaffoldBackgroundColor: scheme.surface,
+      fontFamily: 'Satoshi',
+      textTheme: ThemeData(brightness: brightness).textTheme.apply(
+            fontFamily: 'Satoshi',
+          ),
+      appBarTheme: AppBarTheme(
         backgroundColor: scheme.surface,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
@@ -998,10 +998,17 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
         color: brightness == Brightness.light
             ? Colors.white
             : const Color(0xFF1B1D1A),
-        elevation: 0,
+        surfaceTintColor: Colors.transparent,
+        elevation: brightness == Brightness.light ? 3 : 0,
+        shadowColor: brightness == Brightness.light
+            ? Colors.black.withOpacity(0.15)
+            : null,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(24),
+          side: brightness == Brightness.light
+              ? BorderSide(color: Colors.black.withOpacity(0.06), width: 1)
+              : BorderSide.none,
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
