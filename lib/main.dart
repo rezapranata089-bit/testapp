@@ -110,10 +110,14 @@ class NotificationService {
     // - Isi: "Waktunya [Jenis Workout] dalam [X] menit."
     // - Ikon: Menggunakan logo aplikasi (ic_launcher).
     // - Aksi: Jika di-tap, akan langsung membuka aplikasi Workout Rumah.
+    final bodyText = item.reminderMinutes == 0
+        ? 'Waktunya ${item.workout} sekarang! Mari bergerak.'
+        : 'Waktunya ${item.workout} dalam ${item.reminderMinutes} menit.';
+
     await _flutterLocalNotificationsPlugin.zonedSchedule(
       item.id.hashCode,
       'Siap-siap Latihan!',
-      'Waktunya ${item.workout} dalam ${item.reminderMinutes} menit.',
+      bodyText,
       scheduledDate,
       const NotificationDetails(
         android: AndroidNotificationDetails(
@@ -2843,7 +2847,11 @@ class SchedulePage extends StatelessWidget {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Aktifkan reminder'),
-                    subtitle: Text('$reminderMinutes menit sebelum latihan'),
+                    subtitle: Text(
+                      reminderMinutes == 0 
+                          ? 'Tepat saat latihan dimulai' 
+                          : '$reminderMinutes menit sebelum latihan'
+                    ),
                     value: reminderEnabled,
                     onChanged: (value) {
                       setModalState(() => reminderEnabled = value);
@@ -2855,11 +2863,15 @@ class SchedulePage extends StatelessWidget {
                       decoration: const InputDecoration(
                         labelText: 'Ingatkan saya',
                       ),
-                      items: const [5, 15, 30, 60]
+                      items: const [0, 5, 15, 30, 60]
                           .map(
                             (minutes) => DropdownMenuItem(
                               value: minutes,
-                              child: Text('$minutes menit sebelumnya'),
+                              child: Text(
+                                minutes == 0 
+                                    ? 'Tepat saat mulai (0 menit)' 
+                                    : '$minutes menit sebelumnya'
+                              ),
                             ),
                           )
                           .toList(),
@@ -3204,7 +3216,11 @@ class _ScheduleListState extends State<_ScheduleList> {
                   SwitchListTile(
                     contentPadding: EdgeInsets.zero,
                     title: const Text('Aktifkan reminder'),
-                    subtitle: Text('$reminderMinutes menit sebelum latihan'),
+                    subtitle: Text(
+                      reminderMinutes == 0 
+                          ? 'Tepat saat latihan dimulai' 
+                          : '$reminderMinutes menit sebelum latihan'
+                    ),
                     value: reminderEnabled,
                     onChanged: (value) {
                       setModalState(() => reminderEnabled = value);
@@ -3216,11 +3232,15 @@ class _ScheduleListState extends State<_ScheduleList> {
                       decoration: const InputDecoration(
                         labelText: 'Ingatkan saya',
                       ),
-                      items: const [5, 15, 30, 60]
+                      items: const [0, 5, 15, 30, 60]
                           .map(
                             (minutes) => DropdownMenuItem(
                               value: minutes,
-                              child: Text('$minutes menit sebelumnya'),
+                              child: Text(
+                                minutes == 0 
+                                    ? 'Tepat saat mulai (0 menit)' 
+                                    : '$minutes menit sebelumnya'
+                              ),
                             ),
                           )
                           .toList(),
@@ -3590,7 +3610,9 @@ class _ScheduleTileState extends State<_ScheduleTile> with TickerProviderStateMi
                                         const SizedBox(width: 4),
                                         Text(
                                           widget.schedule.reminderEnabled
-                                              ? '${widget.schedule.reminderMinutes} mnt sebelumnya'
+                                              ? (widget.schedule.reminderMinutes == 0 
+                                                  ? 'Tepat saat mulai' 
+                                                  : '${widget.schedule.reminderMinutes} mnt sebelumnya')
                                               : 'Reminder mati',
                                           style: TextStyle(
                                             fontSize: 12,
