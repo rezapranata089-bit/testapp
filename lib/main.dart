@@ -197,6 +197,57 @@ class NotificationService {
     await _flutterLocalNotificationsPlugin.cancel(id.hashCode);
   }
 
+  // Alat diagnosa: menampilkan status izin exact alarm sebenarnya di sistem,
+  // jadwal berikutnya yang DIHITUNG oleh kode untuk tiap item, serta daftar
+  // notifikasi yang BENAR-BENAR sudah terdaftar di OS. Ini dipakai untuk
+  // membedakan apakah masalahnya di izin, logic tanggal, atau OS yang
+  // menolak mendaftarkan alarm sama sekali.
+  Future<String> debugScheduleInfo(List<ScheduleItem> schedules) async {
+    if (kIsWeb) return 'Tidak tersedia di web.';
+    final buffer = StringBuffer();
+
+    final androidPlugin = _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    final canExact = await androidPlugin?.canScheduleExactNotifications() ?? true;
+    buffer.writeln('Izin exact alarm: ${canExact ? "AKTIF" : "TIDAK AKTIF"}');
+    buffer.writeln('Waktu sekarang (device): ${tz.TZDateTime.now(tz.local)}');
+    buffer.writeln('');
+
+    for (final s in schedules) {
+      final dayOfWeek = _dayOfWeekToInt(s.day);
+      int hour = 18;
+      int minute = 30;
+      try {
+        final clean = s.time.replaceAll(RegExp(r'[^0-9:]'), '').trim();
+        final parts = clean.split(':');
+        if (parts.length >= 2) {
+          hour = int.parse(parts[0]);
+          minute = int.parse(parts[1]);
+          if (s.time.toLowerCase().contains('pm') && hour < 12) hour += 12;
+          if (s.time.toLowerCase().contains('am') && hour == 12) hour = 0;
+        }
+      } catch (_) {}
+      final next =
+          _nextInstanceOfWorkout(dayOfWeek, hour, minute, s.reminderMinutes);
+      buffer.writeln('${s.workout} (${s.day} • ${s.time})');
+      buffer.writeln('  aktif: ${s.active}, reminder: ${s.reminderEnabled}');
+      buffer.writeln('  jadwal berikutnya (dihitung): $next');
+      buffer.writeln('');
+    }
+
+    final pending =
+        await _flutterLocalNotificationsPlugin.pendingNotificationRequests();
+    buffer.writeln('Terdaftar di sistem OS: ${pending.length} notifikasi');
+    for (final p in pending) {
+      buffer.writeln('  id=${p.id} title=${p.title}');
+    }
+    if (pending.isEmpty) {
+      buffer.writeln('  (kosong -> penjadwalan gagal didaftarkan ke OS)');
+    }
+
+    return buffer.toString();
+  }
+
   Future<void> showTestNotification() async {
     if (kIsWeb) return;
     await requestPermission();
@@ -4367,6 +4418,39 @@ class ProfilePage extends StatelessWidget {
                     style: TextStyle(fontWeight: FontWeight.w700),
                   ),
                   subtitle: const Text('Kirim notifikasi sekarang untuk cek sistem'),
+                  trailing: const Icon(Icons.chevron_right_rounded),
+                ),
+                const Divider(height: 1, indent: 68),
+                ListTile(
+                  onTap: () async {
+                    final info = await NotificationService.instance
+                        .debugScheduleInfo(appState.schedules);
+                    if (!context.mounted) return;
+                    showDialog<void>(
+                      context: context,
+                      builder: (dialogContext) => AlertDialog(
+                        title: const Text('Debug Notifikasi'),
+                        content: SingleChildScrollView(
+                          child: Text(
+                            info,
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(dialogContext),
+                            child: const Text('Tutup'),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                  leading: const Icon(Icons.bug_report_outlined),
+                  title: const Text(
+                    'Debug Notifikasi',
+                    style: TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: const Text('Lihat status izin & jadwal sebenarnya'),
                   trailing: const Icon(Icons.chevron_right_rounded),
                 ),
                 const Divider(height: 1, indent: 68),
