@@ -95,10 +95,20 @@ class NotificationService {
 
     await requestPermission();
 
-    final timeParts = item.time.split(':');
-    if (timeParts.length != 2) return;
-    final hour = int.tryParse(timeParts[0]) ?? 18;
-    final minute = int.tryParse(timeParts[1]) ?? 30;
+    int hour = 18;
+    int minute = 30;
+    try {
+      // Bersihkan teks dari huruf (AM/PM) agar hanya tersisa angka dan titik dua
+      final clean = item.time.replaceAll(RegExp(r'[^0-9:]'), '').trim();
+      final parts = clean.split(':');
+      if (parts.length >= 2) {
+        hour = int.parse(parts[0]);
+        minute = int.parse(parts[1]);
+        // Konversi ke format 24 jam jika ada teks AM/PM
+        if (item.time.toLowerCase().contains('pm') && hour < 12) hour += 12;
+        if (item.time.toLowerCase().contains('am') && hour == 12) hour = 0;
+      }
+    } catch (_) {}
 
     final dayOfWeek = _dayOfWeekToInt(item.day);
     final scheduledDate = _nextInstanceOfWorkout(dayOfWeek, hour, minute, item.reminderMinutes);
