@@ -22,5 +22,11 @@
     "block": 1,
     "layer": "not_found_in_project",
     "file": "ios/Runner/AppDelegate.swift"
+  },
+  {
+    "timestamp": "2026-08-20 10:30:23",
+    "block": 1,
+    "layer": "not_found_in_project",
+    "file": "lib/main.dart"
   }
 ]

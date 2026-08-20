@@ -1193,7 +1193,13 @@ class _SlidingNavigationBar extends StatelessWidget {
     return Container(
       height: 80 + MediaQuery.of(context).padding.bottom,
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
-      color: bgColor,
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(32),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final itemWidth = constraints.maxWidth / items.length;
