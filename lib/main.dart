@@ -1186,10 +1186,14 @@ class _SlidingNavigationBar extends StatelessWidget {
       (Icons.person_outline_rounded, Icons.person_rounded, 'Profil'),
     ];
 
+    // Background default dari Material 3 Navigation Bar
+    final bgColor = theme.navigationBarTheme.backgroundColor ?? 
+                    theme.colorScheme.surfaceContainer;
+
     return Container(
       height: 80 + MediaQuery.of(context).padding.bottom,
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
-      color: Colors.transparent,
+      color: bgColor,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final itemWidth = constraints.maxWidth / items.length;
