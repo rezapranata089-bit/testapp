@@ -130,25 +130,51 @@ class NotificationService {
         ? 'Waktunya ${item.workout} sekarang! Mari bergerak.'
         : 'Waktunya ${item.workout} dalam ${item.reminderMinutes} menit.';
 
-    await _flutterLocalNotificationsPlugin.zonedSchedule(
-      item.id.hashCode,
-      'Siap-siap Latihan!',
-      bodyText,
-      scheduledDate,
-      const NotificationDetails(
-        android: AndroidNotificationDetails(
-          'workout_reminder_channel',
-          'Workout Reminders',
-          channelDescription: 'Notifikasi untuk jadwal latihanmu',
-          importance: Importance.max,
-          priority: Priority.high,
+    try {
+      // WAJIB menggunakan "exactAllowWhileIdle" agar notifikasi
+      // muncul tepat di menit dan detik itu juga, bukan ditunda oleh sistem hemat daya HP.
+      await _flutterLocalNotificationsPlugin.zonedSchedule(
+        item.id.hashCode,
+        'Siap-siap Latihan!',
+        bodyText,
+        scheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'workout_reminder_channel',
+            'Workout Reminders',
+            channelDescription: 'Notifikasi untuk jadwal latihanmu',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(),
         ),
-        iOS: DarwinNotificationDetails(),
-      ),
-      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-      uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
-    );
+        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+      );
+    } catch (e) {
+      // Fallback: Jika izin exact diam-diam ditolak oleh OS Android, 
+      // tetap jalankan menggunakan versi inexact (walau mungkin delay).
+      await _flutterLocalNotificationsPlugin.zonedSchedule(
+        item.id.hashCode,
+        'Siap-siap Latihan!',
+        bodyText,
+        scheduledDate,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'workout_reminder_channel',
+            'Workout Reminders',
+            channelDescription: 'Notifikasi untuk jadwal latihanmu',
+            importance: Importance.max,
+            priority: Priority.high,
+          ),
+          iOS: DarwinNotificationDetails(),
+        ),
+        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+        uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
+        matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
+      );
+    }
   }
 
   Future<void> cancelReminder(String id) async {
