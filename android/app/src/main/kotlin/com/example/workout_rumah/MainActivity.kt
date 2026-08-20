@@ -1,4 +1,4 @@
-package com.example.workout_rumah
+package com.zeuxxi.homefit
 
 import io.flutter.embedding.android.FlutterActivity
 
