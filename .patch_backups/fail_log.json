@@ -28,5 +28,11 @@
     "block": 1,
     "layer": "not_found_in_project",
     "file": "lib/main.dart"
+  },
+  {
+    "timestamp": "2026-08-20 13:15:28",
+    "block": 1,
+    "layer": "auto_create_cancelled",
+    "file": "android/app/proguard-rules.pro"
   }
 ]
