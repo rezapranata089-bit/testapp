@@ -570,6 +570,130 @@ const workoutOfTheDay = WorkoutData(
   ],
 );
 
+const upperBodyWorkout = WorkoutData(
+  title: 'Upper Body',
+  description: 'Kuatkan dada, lengan, dan bahu dari rumah.',
+  difficulty: 'Menengah',
+  durationMinutes: 20,
+  exercises: [
+    ExerciseData(
+      name: 'Push Up',
+      subtitle: 'Dada & lengan',
+      sets: 3,
+      reps: 12,
+      restSeconds: 30,
+      color: Color(0xFFFFD5C2),
+      icon: Icons.fitness_center_rounded,
+    ),
+    ExerciseData(
+      name: 'Pike Push Up',
+      subtitle: 'Bahu',
+      sets: 3,
+      reps: 10,
+      restSeconds: 30,
+      color: Color(0xFFD9E7FF),
+      icon: Icons.arrow_upward_rounded,
+    ),
+    ExerciseData(
+      name: 'Tricep Dips',
+      subtitle: 'Trisep',
+      sets: 3,
+      reps: 12,
+      restSeconds: 30,
+      color: Color(0xFFE8DFFF),
+      icon: Icons.accessibility_new_rounded,
+    ),
+    ExerciseData(
+      name: 'Plank Shoulder Tap',
+      subtitle: 'Bahu & core',
+      sets: 3,
+      reps: 16,
+      restSeconds: 30,
+      color: Color(0xFFD5F2E3),
+      icon: Icons.horizontal_rule_rounded,
+    ),
+    ExerciseData(
+      name: 'Superman Hold',
+      subtitle: 'Punggung',
+      sets: 3,
+      reps: 1,
+      restSeconds: 30,
+      durationSeconds: 25,
+      color: Color(0xFFFFE5B8),
+      icon: Icons.self_improvement_rounded,
+    ),
+  ],
+);
+
+const lowerBodyWorkout = WorkoutData(
+  title: 'Lower Body',
+  description: 'Bentuk kaki dan glutes yang lebih kuat.',
+  difficulty: 'Menengah',
+  durationMinutes: 22,
+  exercises: [
+    ExerciseData(
+      name: 'Bodyweight Squat',
+      subtitle: 'Kaki & glutes',
+      sets: 4,
+      reps: 15,
+      restSeconds: 30,
+      color: Color(0xFFD9E7FF),
+      icon: Icons.accessibility_new_rounded,
+    ),
+    ExerciseData(
+      name: 'Reverse Lunges',
+      subtitle: 'Kaki & keseimbangan',
+      sets: 3,
+      reps: 12,
+      restSeconds: 30,
+      color: Color(0xFFE8DFFF),
+      icon: Icons.directions_walk_rounded,
+    ),
+    ExerciseData(
+      name: 'Glute Bridge',
+      subtitle: 'Glutes & core',
+      sets: 3,
+      reps: 15,
+      restSeconds: 30,
+      color: Color(0xFFFFD8E4),
+      icon: Icons.self_improvement_rounded,
+    ),
+    ExerciseData(
+      name: 'Calf Raise',
+      subtitle: 'Betis',
+      sets: 3,
+      reps: 20,
+      restSeconds: 25,
+      color: Color(0xFFFFE5B8),
+      icon: Icons.arrow_upward_rounded,
+    ),
+    ExerciseData(
+      name: 'Wall Sit',
+      subtitle: 'Paha depan',
+      sets: 3,
+      reps: 1,
+      restSeconds: 30,
+      durationSeconds: 30,
+      color: Color(0xFFD5F2E3),
+      icon: Icons.horizontal_rule_rounded,
+    ),
+  ],
+);
+
+// Memetakan nama workout dari jadwal (mis. 'Upper Body') ke data latihan
+// yang sesuai. Default ke Full Body bila tipe tidak dikenali.
+WorkoutData workoutDataForType(String workoutType) {
+  switch (workoutType) {
+    case 'Upper Body':
+      return upperBodyWorkout;
+    case 'Lower Body':
+      return lowerBodyWorkout;
+    case 'Full Body':
+    default:
+      return workoutOfTheDay;
+  }
+}
+
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
@@ -762,6 +886,92 @@ class WorkoutAppState extends ChangeNotifier {
   bool get remindersEnabled =>
       schedules.any((item) => item.active && item.reminderEnabled);
 
+  static const _dayNames = [
+    'Senin',
+    'Selasa',
+    'Rabu',
+    'Kamis',
+    'Jumat',
+    'Sabtu',
+    'Minggu',
+  ];
+
+  int _dayNameToWeekday(String day) {
+    switch (day.toLowerCase()) {
+      case 'senin':
+        return DateTime.monday;
+      case 'selasa':
+        return DateTime.tuesday;
+      case 'rabu':
+        return DateTime.wednesday;
+      case 'kamis':
+        return DateTime.thursday;
+      case 'jumat':
+        return DateTime.friday;
+      case 'sabtu':
+        return DateTime.saturday;
+      case 'minggu':
+        return DateTime.sunday;
+      default:
+        return DateTime.monday;
+    }
+  }
+
+  DateTime _parseScheduleDateTime(ScheduleItem item) {
+    int hour = 18;
+    int minute = 30;
+    try {
+      final clean = item.time.replaceAll(RegExp(r'[^0-9:]'), '').trim();
+      final parts = clean.split(':');
+      if (parts.length >= 2) {
+        hour = int.parse(parts[0]);
+        minute = int.parse(parts[1]);
+        if (item.time.toLowerCase().contains('pm') && hour < 12) hour += 12;
+        if (item.time.toLowerCase().contains('am') && hour == 12) hour = 0;
+      }
+    } catch (_) {}
+
+    final now = DateTime.now();
+    final targetWeekday = _dayNameToWeekday(item.day);
+    var scheduled = DateTime(now.year, now.month, now.day, hour, minute);
+    while (scheduled.weekday != targetWeekday) {
+      scheduled = scheduled.add(const Duration(days: 1));
+    }
+    if (scheduled.isBefore(now)) {
+      scheduled = scheduled.add(const Duration(days: 7));
+    }
+    return scheduled;
+  }
+
+  // Jadwal aktif dengan waktu TERDEKAT dari sekarang (bukan sekadar item
+  // pertama di list), dipakai kartu "Jadwal berikutnya" di Home.
+  ScheduleItem? get nextUpcomingSchedule {
+    final active = schedules.where((item) => item.active).toList();
+    if (active.isEmpty) return null;
+
+    ScheduleItem closest = active.first;
+    DateTime closestTime = _parseScheduleDateTime(active.first);
+    for (final item in active.skip(1)) {
+      final time = _parseScheduleDateTime(item);
+      if (time.isBefore(closestTime)) {
+        closestTime = time;
+        closest = item;
+      }
+    }
+    return closest;
+  }
+
+  // Latihan yang cocok dengan jadwal aktif hari ini. Jika tidak ada jadwal
+  // untuk hari ini, jatuh kembali ke Full Body sebagai default.
+  WorkoutData get todayWorkout {
+    final todayName = _dayNames[DateTime.now().weekday - 1];
+    final todaySchedule = schedules.where(
+      (item) => item.active && item.day == todayName,
+    );
+    if (todaySchedule.isEmpty) return workoutOfTheDay;
+    return workoutDataForType(todaySchedule.first.workout);
+  }
+
   Future<void> _load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -891,12 +1101,13 @@ class WorkoutAppState extends ChangeNotifier {
   void addHistory({
     required int durationMinutes,
     required int calories,
+    required WorkoutData workout,
   }) {
     final newHistory = WorkoutHistory(
-      title: workoutOfTheDay.title,
+      title: workout.title,
       completedAt: DateTime.now(),
       durationMinutes: durationMinutes,
-      exerciseCount: workoutOfTheDay.exercises.length,
+      exerciseCount: workout.exercises.length,
       calories: calories,
     );
     
@@ -1633,10 +1844,8 @@ class HomePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final activeSchedules =
-        appState.schedules.where((item) => item.active).toList();
-    final nextSchedule =
-        activeSchedules.isEmpty ? null : activeSchedules.first;
+    final nextSchedule = appState.nextUpcomingSchedule;
+    final todayWorkout = appState.todayWorkout;
     return SafeArea(
       top: false,
       child: ListView(
@@ -1711,7 +1920,7 @@ class HomePage extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '${workoutOfTheDay.exercises.length} gerakan',
+                  '${todayWorkout.exercises.length} gerakan',
                   style: theme.textTheme.bodySmall?.copyWith(
                     color: theme.colorScheme.onSurfaceVariant,
                   ),
@@ -1720,7 +1929,7 @@ class HomePage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          ...workoutOfTheDay.exercises.asMap().entries.map(
+          ...todayWorkout.exercises.asMap().entries.map(
                 (entry) => Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 10),
                   child: _ScrollRevealItem(
@@ -1926,6 +2135,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final progress = widget.appState.completedToday ? 1.0 : 0.0;
+    final todayWorkout = widget.appState.todayWorkout;
 
     final content = Container(
       // Padding atas dikurangi agar tidak terlalu jauh dari form AI,
@@ -1982,7 +2192,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   ),
                   const SizedBox(height: 18),
                   Text(
-                    workoutOfTheDay.title,
+                    todayWorkout.title,
                     softWrap: false,
                     style: theme.textTheme.displaySmall?.copyWith(
                       color: Colors.white,
@@ -1997,7 +2207,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                   SizedBox(
                     width: MediaQuery.of(context).size.width * 0.55,
                     child: Text(
-                      workoutOfTheDay.description,
+                      todayWorkout.description,
                       style: theme.textTheme.bodyMedium?.copyWith(
                         color: Colors.white.withOpacity(0.9),
                         shadows: [
@@ -2013,11 +2223,11 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                     children: [
                       _WhiteMeta(
                         icon: Icons.timer_outlined,
-                        text: '${workoutOfTheDay.durationMinutes} menit',
+                        text: '${todayWorkout.durationMinutes} menit',
                       ),
                       _WhiteMeta(
                         icon: Icons.fitness_center_outlined,
-                        text: '${workoutOfTheDay.exercises.length} gerakan',
+                        text: '${todayWorkout.exercises.length} gerakan',
                       ),
                     ],
                   ),
@@ -4141,6 +4351,7 @@ class HistoryDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final historyWorkout = workoutDataForType(item.title);
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -4207,7 +4418,7 @@ class HistoryDetailPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          ...workoutOfTheDay.exercises.asMap().entries.map(
+          ...historyWorkout.exercises.asMap().entries.map(
                 (entry) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: ExerciseListTile(
@@ -4743,12 +4954,14 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
   bool isResting = false;
   DateTime? startedAt;
   Timer? timer;
+  late final WorkoutData workoutData;
 
-  ExerciseData get exercise => workoutOfTheDay.exercises[exerciseIndex];
+  ExerciseData get exercise => workoutData.exercises[exerciseIndex];
 
   @override
   void initState() {
     super.initState();
+    workoutData = widget.appState.todayWorkout;
     startedAt = DateTime.now();
     if (exercise.durationSeconds != null) {
       secondsRemaining = exercise.durationSeconds!;
@@ -4797,9 +5010,9 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
         secondsRemaining = exercise.restSeconds;
       });
       _showRestSheet();
-    } else if (exerciseIndex < workoutOfTheDay.exercises.length - 1) {
+    } else if (exerciseIndex < workoutData.exercises.length - 1) {
       final nextIndex = exerciseIndex + 1;
-      final nextExercise = workoutOfTheDay.exercises[nextIndex];
+      final nextExercise = workoutData.exercises[nextIndex];
       setState(() {
         exerciseIndex = nextIndex;
         currentSet = 1;
@@ -4814,10 +5027,10 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
   }
 
   void _skipExercise() {
-    if (exerciseIndex < workoutOfTheDay.exercises.length - 1) {
+    if (exerciseIndex < workoutData.exercises.length - 1) {
       timer?.cancel();
       final nextIndex = exerciseIndex + 1;
-      final nextExercise = workoutOfTheDay.exercises[nextIndex];
+      final nextExercise = workoutData.exercises[nextIndex];
       setState(() {
         exerciseIndex = nextIndex;
         currentSet = 1;
@@ -4927,16 +5140,18 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
     final duration =
         DateTime.now().difference(startedAt ?? DateTime.now()).inMinutes;
     final safeDuration = duration.clamp(1, 999).toInt();
-    final calories = 180 + (workoutOfTheDay.exercises.length * 12);
+    final calories = 180 + (workoutData.exercises.length * 12);
     widget.appState.addHistory(
       durationMinutes: safeDuration,
       calories: calories,
+      workout: workoutData,
     );
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => WorkoutCompletePage(
           durationMinutes: safeDuration,
           calories: calories,
+          exerciseCount: workoutData.exercises.length,
           appState: widget.appState,
         ),
       ),
@@ -4948,7 +5163,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
     final theme = Theme.of(context);
     final overallProgress =
         (exerciseIndex + (currentSet - 1) / exercise.sets) /
-            workoutOfTheDay.exercises.length;
+            workoutData.exercises.length;
     final displayTarget = exercise.durationSeconds != null
         ? '${secondsRemaining}s'
         : '$currentRep / ${exercise.reps}';
@@ -4959,7 +5174,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
           icon: const Icon(Icons.close_rounded),
         ),
         title: Text(
-          'Workout ${exerciseIndex + 1}/${workoutOfTheDay.exercises.length}',
+          'Workout ${exerciseIndex + 1}/${workoutData.exercises.length}',
           style: const TextStyle(fontWeight: FontWeight.w800),
         ),
         actions: [
@@ -5174,12 +5389,14 @@ class WorkoutCompletePage extends StatelessWidget {
   const WorkoutCompletePage({
     required this.durationMinutes,
     required this.calories,
+    required this.exerciseCount,
     required this.appState,
     super.key,
   });
 
   final int durationMinutes;
   final int calories;
+  final int exerciseCount;
   final WorkoutAppState appState;
 
   @override
@@ -5233,7 +5450,7 @@ class WorkoutCompletePage extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: _CompletionStat(
-                      value: '${workoutOfTheDay.exercises.length}',
+                      value: '$exerciseCount',
                       label: 'exercise',
                     ),
                   ),
