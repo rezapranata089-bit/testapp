@@ -57,6 +57,17 @@ class NotificationService {
     await iosPlugin?.requestPermissions(alert: true, badge: true, sound: true);
   }
 
+  // Cek status izin exact alarm sebenarnya, karena requestExactAlarmsPermission()
+  // di Android hanya membuka halaman Settings dan tidak menjamin user benar-benar
+  // mengaktifkannya, sehingga notifikasi bisa diam-diam jatuh ke mode inexact (telat).
+  Future<bool> _canScheduleExact() async {
+    if (kIsWeb) return false;
+    final androidPlugin = _flutterLocalNotificationsPlugin
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>();
+    if (androidPlugin == null) return true;
+    return await androidPlugin.canScheduleExactNotifications() ?? false;
+  }
+
   int _dayOfWeekToInt(String day) {
     switch (day.toLowerCase()) {
       case 'senin': return 1;
@@ -130,9 +141,14 @@ class NotificationService {
         ? 'Waktunya ${item.workout} sekarang! Mari bergerak.'
         : 'Waktunya ${item.workout} dalam ${item.reminderMinutes} menit.';
 
+    final canExact = await _canScheduleExact();
+    final scheduleMode = canExact
+        ? AndroidScheduleMode.exactAllowWhileIdle
+        : AndroidScheduleMode.inexactAllowWhileIdle;
+
     try {
-      // WAJIB menggunakan "exactAllowWhileIdle" agar notifikasi
-      // muncul tepat di menit dan detik itu juga, bukan ditunda oleh sistem hemat daya HP.
+      // Mode jadwal kini ditentukan dari status izin exact alarm yang nyata,
+      // bukan ditebak lewat try/catch seperti sebelumnya.
       await _flutterLocalNotificationsPlugin.zonedSchedule(
         item.id.hashCode,
         'Siap-siap Latihan!',
@@ -148,13 +164,12 @@ class NotificationService {
           ),
           iOS: DarwinNotificationDetails(),
         ),
-        androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+        androidScheduleMode: scheduleMode,
         uiLocalNotificationDateInterpretation: UILocalNotificationDateInterpretation.absoluteTime,
         matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime,
       );
     } catch (e) {
-      // Fallback: Jika izin exact diam-diam ditolak oleh OS Android, 
-      // tetap jalankan menggunakan versi inexact (walau mungkin delay).
+      // Fallback terakhir bila mode exact tetap gagal walau izin sudah ada.
       await _flutterLocalNotificationsPlugin.zonedSchedule(
         item.id.hashCode,
         'Siap-siap Latihan!',
