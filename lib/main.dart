@@ -946,6 +946,10 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
           builder: (context, child) {
             final resolvedBrightness = Theme.of(context).brightness;
             final isDark = resolvedBrightness == Brightness.dark;
+            
+            final baseColor = isDark ? const Color(0xFF111310) : const Color(0xFFF4F3F0);
+            final tintColor = Color.lerp(baseColor, seed, isDark ? 0.2 : 0.12) ?? baseColor;
+
             return AnnotatedRegion<SystemUiOverlayStyle>(
               value: SystemUiOverlayStyle(
                 statusBarColor: Colors.transparent,
@@ -958,9 +962,18 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
                     isDark ? Brightness.light : Brightness.dark,
                 systemNavigationBarContrastEnforced: false,
               ),
-              child: DefaultTextStyle.merge(
-                style: const TextStyle(fontFamily: 'Satoshi'),
-                child: child ?? const SizedBox.shrink(),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [baseColor, tintColor],
+                  ),
+                ),
+                child: DefaultTextStyle.merge(
+                  style: const TextStyle(fontFamily: 'Satoshi'),
+                  child: child ?? const SizedBox.shrink(),
+                ),
               ),
             );
           },
@@ -984,13 +997,13 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
       useMaterial3: true,
       brightness: brightness,
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surface,
+      scaffoldBackgroundColor: Colors.transparent,
       fontFamily: 'Satoshi',
       textTheme: ThemeData(brightness: brightness).textTheme.apply(
             fontFamily: 'Satoshi',
           ),
-      appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.transparent,
         surfaceTintColor: Colors.transparent,
         elevation: 0,
       ),
@@ -1173,14 +1186,10 @@ class _SlidingNavigationBar extends StatelessWidget {
       (Icons.person_outline_rounded, Icons.person_rounded, 'Profil'),
     ];
 
-    // Background default dari Material 3 Navigation Bar
-    final bgColor = theme.navigationBarTheme.backgroundColor ?? 
-                    theme.colorScheme.surfaceContainer;
-
     return Container(
       height: 80 + MediaQuery.of(context).padding.bottom,
       padding: EdgeInsets.only(bottom: MediaQuery.of(context).padding.bottom),
-      color: bgColor,
+      color: Colors.transparent,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final itemWidth = constraints.maxWidth / items.length;
