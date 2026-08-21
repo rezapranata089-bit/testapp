@@ -2849,27 +2849,29 @@ class _MainShellState extends State<MainShell>
         ),
       ),
     ];
-    final scaffold = Scaffold(
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          // Hanya ubah state jika pengguna yang menggeser manual (swipe)
-          if (!_isNavigating) {
-            setState(() => selectedIndex = index);
-          }
-        },
-        children: pages,
-      ),
-      bottomNavigationBar: _SlidingNavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: _onItemTapped,
-      ),
+
+    final tabPageView = PageView(
+      controller: _pageController,
+      onPageChanged: (index) {
+        // Hanya ubah state jika pengguna yang menggeser manual (swipe)
+        if (!_isNavigating) {
+          setState(() => selectedIndex = index);
+        }
+      },
+      children: pages,
     );
 
-    // Efek "terdorong": seluruh isi shell (termasuk bottom nav) mengecil,
-    // geser ke kiri, dan meredup saat panel full-screen dibuka di atasnya
-    // lewat _pushPanel() -- lalu kembali normal begitu panel ditutup.
-    return AnimatedBuilder(
+    // Efek "terdorong" kini HANYA dibungkus di sekitar konten tab (body),
+    // BUKAN seluruh Scaffold. Sebelumnya Transform+dim ini membungkus
+    // Scaffold utuh (termasuk bottomNavigationBar), sehingga navbar ikut
+    // mengecil/bergeser/meredup setiap kali panel full-screen dibuka lewat
+    // _pushPanel() -- padahal navbar seharusnya tetap diam di tempat.
+    // Membungkus Transform di sekitar Scaffold penuh juga membuat area tab
+    // yang sedang aktif sempat terlihat blank/gelap total karena bidang
+    // yang mengecil menyingkap gradient root di baliknya. Dengan hanya
+    // membungkus PageView, navbar tetap statis dan area kosong akibat
+    // scale-down tetap tertutup rapi oleh overlay dim, bukan celah kosong.
+    final recededBody = AnimatedBuilder(
       animation: _recedeController,
       builder: (context, child) {
         final t = Curves.easeOutQuart.transform(_recedeController.value);
@@ -2883,7 +2885,7 @@ class _MainShellState extends State<MainShell>
             ..scale(scale),
           child: Stack(
             children: [
-              child!,
+              Positioned.fill(child: child!),
               Positioned.fill(
                 child: IgnorePointer(
                   child: Container(
@@ -2895,7 +2897,15 @@ class _MainShellState extends State<MainShell>
           ),
         );
       },
-      child: scaffold,
+      child: tabPageView,
+    );
+
+    return Scaffold(
+      body: recededBody,
+      bottomNavigationBar: _SlidingNavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: _onItemTapped,
+      ),
     );
   }
 }
