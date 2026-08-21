@@ -2441,50 +2441,9 @@ class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final fadeIn = FadeTransition(
+    return FadeTransition(
       opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
       child: child,
-    );
-
-    final recede = CurvedAnimation(
-      parent: secondaryAnimation,
-      curve: Curves.easeOutQuart,
-      reverseCurve: Curves.easeInQuart,
-    );
-
-    return AnimatedBuilder(
-      animation: recede,
-      builder: (context, transitionChild) {
-        final t = recede.value.clamp(0.0, 1.0);
-        if (t <= 0.0) return transitionChild!;
-
-        // Halaman di belakang (Home/Progress) akan mengecil dan bergeser
-        // ke kiri TANPA dipotong (no ClipRect). Ini membuat efek terdorong
-        // terlihat sangat jelas dan mulus di balik bayangan panel baru.
-        final scale = 1.0 - (t * 0.08);
-        final dx = -t * 70.0;
-
-        return Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.identity()
-            ..translate(dx)
-            ..scale(scale),
-          child: Stack(
-            children: [
-              transitionChild!,
-              // Efek bayangan gelap yang makin pekat saat panel menutupi
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: Container(
-                    color: Colors.black.withOpacity(t * 0.65),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-      child: fadeIn,
     );
   }
 }
@@ -2529,12 +2488,9 @@ Route<T> _slidePageRoute<T>(Widget page) {
 // terpicu untuk kombinasi Navigator.push + PageRouteBuilder kustom.
 final GlobalKey<_MainShellState> mainShellKey = GlobalKey<_MainShellState>();
 
-// Pengganti Navigator.push(_slidePageRoute(...)) langsung. Memicu MainShell
-// mengecil/meredup SEBELUM push, lalu mengembalikannya begitu panel ditutup.
+// Pengganti Navigator.push(_slidePageRoute(...)) langsung.
 Future<T?> _pushPanel<T>(BuildContext context, Widget page) async {
-  mainShellKey.currentState?._setReceded(true);
   final result = await Navigator.of(context).push<T>(_slidePageRoute<T>(page));
-  mainShellKey.currentState?._setReceded(false);
   // Sinkronkan ulang posisi PageView setelah frame pop selesai, sebagai
   // jaring pengaman terakhir agar tab yang tampil selalu cocok dengan
   // tab yang ter-highlight di navbar.
@@ -2777,27 +2733,10 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell>
-    with SingleTickerProviderStateMixin {
+class _MainShellState extends State<MainShell> {
   int selectedIndex = 0;
   late PageController _pageController;
   bool _isNavigating = false;
-
-  // Dipicu manual oleh _pushPanel() setiap kali panel full-screen dibuka
-  // atau ditutup, supaya efek "terdorong" pasti berjalan.
-  late final AnimationController _recedeController = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 450),
-    reverseDuration: const Duration(milliseconds: 350),
-  );
-
-  void _setReceded(bool receded) {
-    if (receded) {
-      _recedeController.forward();
-    } else {
-      _recedeController.reverse();
-    }
-  }
 
   // Menjamin posisi scroll FISIK PageView tetap sinkron dengan
   // `selectedIndex` (yang menentukan tab mana yang ter-highlight di
@@ -2841,7 +2780,6 @@ class _MainShellState extends State<MainShell>
   @override
   void dispose() {
     _pageController.dispose();
-    _recedeController.dispose();
     super.dispose();
   }
 
@@ -2964,49 +2902,10 @@ class _MainShellState extends State<MainShell>
       ),
     );
 
-    // Efek "terdorong" kini HANYA dibungkus di sekitar konten tab (body),
-    // BUKAN seluruh Scaffold. Sebelumnya Transform+dim ini membungkus
-    // Scaffold utuh (termasuk bottomNavigationBar), sehingga navbar ikut
-    // mengecil/bergeser/meredup setiap kali panel full-screen dibuka lewat
-    // _pushPanel() -- padahal navbar seharusnya tetap diam di tempat.
-    // Membungkus Transform di sekitar Scaffold penuh juga membuat area tab
-    // yang sedang aktif sempat terlihat blank/gelap total karena bidang
-    // yang mengecil menyingkap gradient root di baliknya. Dengan hanya
-    // membungkus PageView, navbar tetap statis dan area kosong akibat
-    // scale-down tetap tertutup rapi oleh overlay dim, bukan celah kosong.
-    final recededBody = AnimatedBuilder(
-      animation: _recedeController,
-      builder: (context, child) {
-        final t = Curves.easeOutQuart.transform(_recedeController.value);
-        if (t <= 0.0) return child!;
-        final scale = 1.0 - (t * 0.08);
-        final dx = -t * 70.0;
-        return Transform(
-          alignment: Alignment.center,
-          transform: Matrix4.identity()
-            ..translate(dx)
-            ..scale(scale),
-          child: Stack(
-            children: [
-              Positioned.fill(child: child!),
-              Positioned.fill(
-                child: IgnorePointer(
-                  child: Container(
-                    color: Colors.black.withOpacity(t * 0.65),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        );
-      },
-      child: tabPageView,
-    );
-
     _scheduleResyncCheck();
 
     return Scaffold(
-      body: recededBody,
+      body: tabPageView,
       bottomNavigationBar: _SlidingNavigationBar(
         selectedIndex: selectedIndex,
         onDestinationSelected: _onItemTapped,
