@@ -20,6 +20,7 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:confetti/confetti.dart';
 
 class NotificationService {
   static final NotificationService instance = NotificationService._init();
@@ -6953,7 +6954,7 @@ class _SessionMetric extends StatelessWidget {
   }
 }
 
-class WorkoutCompletePage extends StatelessWidget {
+class WorkoutCompletePage extends StatefulWidget {
   const WorkoutCompletePage({
     required this.durationMinutes,
     required this.calories,
@@ -6968,11 +6969,38 @@ class WorkoutCompletePage extends StatelessWidget {
   final WorkoutAppState appState;
 
   @override
+  State<WorkoutCompletePage> createState() => _WorkoutCompletePageState();
+}
+
+class _WorkoutCompletePageState extends State<WorkoutCompletePage> {
+  late final ConfettiController _confettiController;
+
+  @override
+  void initState() {
+    super.initState();
+    _confettiController = ConfettiController(duration: const Duration(seconds: 2));
+    _confettiController.play();
+  }
+
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final durationMinutes = widget.durationMinutes;
+    final calories = widget.calories;
+    final exerciseCount = widget.exerciseCount;
+    final appState = widget.appState;
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
+      body: Stack(
+        alignment: Alignment.topCenter,
+        children: [
+          SafeArea(
+            child: Padding(
           padding: const EdgeInsets.fromLTRB(24, 34, 24, 26),
           child: Column(
             children: [
@@ -7065,7 +7093,22 @@ class WorkoutCompletePage extends StatelessWidget {
               ),
             ],
           ),
-        ),
+            ),
+          ),
+          ConfettiWidget(
+            confettiController: _confettiController,
+            blastDirectionality: BlastDirectionality.explosive,
+            shouldLoop: false,
+            numberOfParticles: 24,
+            gravity: 0.25,
+            colors: [
+              appState.accentColor,
+              theme.colorScheme.primary,
+              theme.colorScheme.secondary,
+              Colors.white,
+            ],
+          ),
+        ],
       ),
     );
   }
