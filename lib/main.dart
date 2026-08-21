@@ -2938,37 +2938,26 @@ class _PageViewParallaxItem extends StatelessWidget {
         final distance = (page - index).clamp(-1.0, 1.0);
         final absDistance = distance.abs();
         
-        // Memakai kurva agar perubahan scale lebih terasa fluid (tidak linear kaku).
+        // Memakai kurva agar perubahan scale lebih terasa fluid.
         final easedDistance = Curves.easeOutQuad.transform(absDistance);
         
-        // Scale disesuaikan agar tidak terlalu dalam
-        final scale = 1.0 - (easedDistance * 0.1);
-        final translateX = distance * 35.0;
+        // Scale disesuaikan agar pas dan efek 3D tetap terasa
+        final scale = 1.0 - (easedDistance * 0.08);
+        final translateX = distance * 30.0;
         
-        // SUPER OPTIMASI: Mengganti widget Opacity (yang memicu saveLayer
-        // sangat berat pada GPU saat transisi) dengan ColoredBox hitam 
-        // semi-transparan. Ini 10x lebih ringan, tidak membuat drop frame, 
-        // dan tetap memberi efek bayangan kedalaman (depth) yang mulus.
+        // Opacity dikembalikan. ColoredBox sebelumnya membuat latar belakang
+        // transparan ikut gelap sehingga membentuk garis kotak kasar (hard edge)
+        // yang memotong UI. Opacity memudar bersama root gradient secara natural.
+        final opacity = (1.0 - (easedDistance * 0.45)).clamp(0.0, 1.0);
+
         return Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()
             ..translate(translateX)
             ..scale(scale),
-          child: Stack(
-            fit: StackFit.passthrough,
-            children: [
-              prebuiltChild!,
-              if (easedDistance > 0.01)
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: ColoredBox(
-                      color: Colors.black.withOpacity(
-                        (easedDistance * 0.3).clamp(0.0, 1.0),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+          child: Opacity(
+            opacity: opacity,
+            child: prebuiltChild,
           ),
         );
       },
