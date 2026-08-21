@@ -2449,6 +2449,29 @@ class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
+// Route kustom dengan transisi slide horizontal (dari kanan ke kiri) untuk
+// halaman yang ingin terasa "didorong masuk", dipakai khusus di beberapa
+// navigasi (mis. mulai sesi latihan, buka detail riwayat) agar terasa
+// lebih hidup dibanding fade transisi bawaan tema aplikasi.
+Route<T> _slidePageRoute<T>(Widget page) {
+  return PageRouteBuilder<T>(
+    transitionDuration: const Duration(milliseconds: 400),
+    reverseTransitionDuration: const Duration(milliseconds: 320),
+    pageBuilder: (context, animation, secondaryAnimation) => page,
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      final slideIn = Tween<Offset>(
+        begin: const Offset(1.0, 0.0),
+        end: Offset.zero,
+      ).animate(CurvedAnimation(
+        parent: animation,
+        curve: Curves.easeOutCubic,
+        reverseCurve: Curves.easeInCubic,
+      ));
+      return SlideTransition(position: slideIn, child: child);
+    },
+  );
+}
+
 class WorkoutRumahApp extends StatefulWidget {
   const WorkoutRumahApp({super.key});
 
@@ -3453,8 +3476,8 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
             width: double.infinity,
             child: FilledButton(
               onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => WorkoutSessionPage(appState: widget.appState),
+                _slidePageRoute(
+                  WorkoutSessionPage(appState: widget.appState),
                 ),
               ),
               style: FilledButton.styleFrom(
@@ -5709,8 +5732,8 @@ class ProgressPage extends StatelessWidget {
                      child: _HistoryTile(
                        item: item,
                        onTap: () => Navigator.of(context).push(
-                         MaterialPageRoute(
-                           builder: (_) => HistoryDetailPage(item: item),
+                         _slidePageRoute(
+                           HistoryDetailPage(item: item),
                          ),
                        ),
                      ),
