@@ -2894,6 +2894,7 @@ class _MainShellState extends State<MainShell> {
       },
       child: PageView(
         controller: _pageController,
+        clipBehavior: Clip.none, // Mencegah pinggiran kiri-kanan halaman terpotong tajam saat animasi bergeser keluar layar
         onPageChanged: (index) {
           // Hanya ubah state jika pengguna yang menggeser manual (swipe)
           if (!_isNavigating) {
@@ -2951,7 +2952,10 @@ class _PageViewParallaxItem extends StatelessWidget {
         final opacity = (1.0 - (easedDistance * 0.45)).clamp(0.0, 1.0);
 
         return Transform(
-          alignment: Alignment.center,
+          // Anchor diletakkan di bawah (bottomCenter).
+          // Ini memastikan saat halaman mengecil, batas bawahnya tetap menempel
+          // tegak lurus pada navbar, menghilangkan celah kosong (terpotong).
+          alignment: Alignment.bottomCenter,
           transform: Matrix4.identity()
             ..translate(translateX)
             ..scale(scale),
