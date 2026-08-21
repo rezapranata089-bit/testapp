@@ -2442,55 +2442,9 @@ class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    final fadeIn = FadeTransition(
+    return FadeTransition(
       opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
       child: child,
-    );
-
-    // Transisi sekunder: memberikan efek "terdorong mundur" (fluid push) yang
-    // lebih dramatis pada tab Home / Progress saat panel detail terbuka.
-    final recede = CurvedAnimation(
-      parent: secondaryAnimation,
-      curve: Curves.easeOutQuart,
-      reverseCurve: Curves.easeInQuart,
-    );
-    
-    return AnimatedBuilder(
-      animation: recede,
-      builder: (context, transitionChild) {
-        final t = recede.value.clamp(0.0, 1.0);
-        if (t <= 0.0) return transitionChild!;
-        final visibleFraction = (1 - t).clamp(0.0, 1.0);
-        
-        // Efek parallax dan scale-down diperbesar agar tab di belakang 
-        // terasa benar-benar terdorong jauh secara fluid
-        final scale = 1.0 - (t * 0.085);
-        final dx = -t * 50.0; 
-        
-        return ClipRect(
-          clipper: _TabRecedeClipper(visibleFraction),
-          child: Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..translate(dx)
-              ..scale(scale),
-            child: Stack(
-              children: [
-                transitionChild!,
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Container(
-                      // Efek menggelap lebih kuat menonjolkan panel di atasnya
-                      color: Colors.black.withOpacity(t * 0.45),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-      child: fadeIn,
     );
   }
 }
@@ -2501,6 +2455,61 @@ class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
 // yang sedang ditutupi -- inilah yang membuat efek "kepotong" oleh tepi
 // panel benar-benar terlihat, tidak seperti Align(widthFactor) yang gagal
 // menyusut akibat tight constraints dari Navigator.
+class _FluidRecedeWrapper extends StatelessWidget {
+  const _FluidRecedeWrapper({required this.child});
+  
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final route = ModalRoute.of(context);
+    if (route == null) return child;
+    final secondaryAnimation = route.secondaryAnimation;
+    if (secondaryAnimation == null) return child;
+
+    final recede = CurvedAnimation(
+      parent: secondaryAnimation,
+      curve: Curves.easeOutQuart,
+      reverseCurve: Curves.easeInQuart,
+    );
+
+    return AnimatedBuilder(
+      animation: recede,
+      builder: (context, childWidget) {
+        final t = recede.value.clamp(0.0, 1.0);
+        if (t <= 0.0) return childWidget!;
+        
+        final scale = 1.0 - (t * 0.065);
+        final dx = -t * 45.0;
+        final visibleFraction = (1 - t).clamp(0.0, 1.0);
+
+        return ClipRect(
+          clipper: _TabRecedeClipper(visibleFraction),
+          child: Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..translate(dx)
+              ..scale(scale),
+            child: Stack(
+              children: [
+                childWidget!,
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      color: Colors.black.withOpacity(t * 0.5),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+      child: child,
+    );
+  }
+}
+
 class _TabRecedeClipper extends CustomClipper<Rect> {
   const _TabRecedeClipper(this.visibleFraction);
 
@@ -2526,12 +2535,10 @@ class _TabRecedeClipper extends CustomClipper<Rect> {
 // bukan tembus pandang/transparan.
 Route<T> _slidePageRoute<T>(Widget page) {
   return PageRouteBuilder<T>(
-    transitionDuration: const Duration(milliseconds: 420),
-    reverseTransitionDuration: const Duration(milliseconds: 340),
+    transitionDuration: const Duration(milliseconds: 450),
+    reverseTransitionDuration: const Duration(milliseconds: 350),
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
-      // Menggunakan easeOutQuart agar sinkron sempurna dengan efek
-      // "terdorong" (recede) di halaman background, terasa lebih fluid.
       final slideIn = Tween<Offset>(
         begin: const Offset(1.0, 0.0),
         end: Offset.zero,
@@ -2540,13 +2547,11 @@ Route<T> _slidePageRoute<T>(Widget page) {
         curve: Curves.easeOutQuart,
         reverseCurve: Curves.easeInQuart,
       ));
-      // Elevation dinaikkan agar kedalaman (depth) lebih terasa saat
-      // panel melayang masuk menutupi tab yang sedang terdorong mundur.
       return SlideTransition(
         position: slideIn,
         child: Material(
           elevation: 12,
-          shadowColor: Colors.black.withOpacity(0.45),
+          shadowColor: Colors.black.withOpacity(0.5),
           color: Colors.transparent,
           child: child,
         ),
@@ -2847,20 +2852,22 @@ class _MainShellState extends State<MainShell> {
         ),
       ),
     ];
-    return Scaffold(
-      body: PageView(
-        controller: _pageController,
-        onPageChanged: (index) {
-          // Hanya ubah state jika pengguna yang menggeser manual (swipe)
-          if (!_isNavigating) {
-            setState(() => selectedIndex = index);
-          }
-        },
-        children: pages,
-      ),
-      bottomNavigationBar: _SlidingNavigationBar(
-        selectedIndex: selectedIndex,
-        onDestinationSelected: _onItemTapped,
+    return _FluidRecedeWrapper(
+      child: Scaffold(
+        body: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            // Hanya ubah state jika pengguna yang menggeser manual (swipe)
+            if (!_isNavigating) {
+              setState(() => selectedIndex = index);
+            }
+          },
+          children: pages,
+        ),
+        bottomNavigationBar: _SlidingNavigationBar(
+          selectedIndex: selectedIndex,
+          onDestinationSelected: _onItemTapped,
+        ),
       ),
     );
   }
