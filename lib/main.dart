@@ -404,10 +404,7 @@ class ExerciseData {
         restSeconds: json['restSeconds'] as int? ?? 30,
         durationSeconds: json['durationSeconds'] as int?,
         color: Color(json['color'] as int? ?? 0xFFD9E7FF),
-        icon: IconData(
-          json['iconCodePoint'] as int? ?? Icons.fitness_center_rounded.codePoint,
-          fontFamily: 'MaterialIcons',
-        ),
+        icon: _resolveExerciseIcon(json['iconCodePoint'] as int?),
       );
 }
 
@@ -451,6 +448,18 @@ const List<ExerciseIconOption> exerciseIconBank = [
   ExerciseIconOption(icon: Icons.sports_rounded, label: 'Olahraga'),
   ExerciseIconOption(icon: Icons.emoji_events_rounded, label: 'Pencapaian'),
 ];
+
+// Lookup cepat codePoint -> IconData dari exerciseIconBank, dipakai supaya
+// ExerciseData.fromJson tidak perlu membuat IconData secara dinamis (yang
+// mematikan tree-shaking icon font saat build release).
+final Map<int, IconData> _exerciseIconByCodePoint = {
+  for (final option in exerciseIconBank) option.icon.codePoint: option.icon,
+};
+
+IconData _resolveExerciseIcon(int? codePoint) {
+  if (codePoint == null) return Icons.fitness_center_rounded;
+  return _exerciseIconByCodePoint[codePoint] ?? Icons.fitness_center_rounded;
+}
 
 // Daftar kategori workout yang tersedia untuk dipilih di jadwal.
 const List<String> workoutCategories = [
