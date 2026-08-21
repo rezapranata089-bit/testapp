@@ -2535,6 +2535,12 @@ Future<T?> _pushPanel<T>(BuildContext context, Widget page) async {
   mainShellKey.currentState?._setReceded(true);
   final result = await Navigator.of(context).push<T>(_slidePageRoute<T>(page));
   mainShellKey.currentState?._setReceded(false);
+  // Sinkronkan ulang posisi PageView setelah frame pop selesai, sebagai
+  // jaring pengaman terakhir agar tab yang tampil selalu cocok dengan
+  // tab yang ter-highlight di navbar.
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    mainShellKey.currentState?._resyncPageView();
+  });
   return result;
 }
 
@@ -2790,6 +2796,29 @@ class _MainShellState extends State<MainShell>
       _recedeController.forward();
     } else {
       _recedeController.reverse();
+    }
+  }
+
+  // Menjamin posisi scroll FISIK PageView tetap sinkron dengan
+  // `selectedIndex` (yang menentukan tab mana yang ter-highlight di
+  // navbar) setiap kali sebuah panel full-screen (dibuka lewat
+  // _pushPanel) selesai ditutup. Tanpa ini, pada kondisi tertentu --
+  // misalnya PageController sempat ter-attach ke lebih dari satu
+  // ScrollPosition secara transien (race saat hot-reload/hot-restart di
+  // web, atau saat route ditutup di tengah animasi tab) -- getter `page`
+  // bisa gagal senyap (lihat _safePageValue) sehingga posisi scroll asli
+  // "tertinggal" di tab lain sementara navbar sudah menunjuk ke tab yang
+  // benar. Akibatnya konten yang tampil dan tab yang ter-highlight di
+  // navbar jadi tidak sinkron. Dipanggil sebagai jaring pengaman terakhir
+  // setiap panel ditutup, agar UI selalu "self-heal" ke state yang benar.
+  void _resyncPageView() {
+    if (!mounted) return;
+    if (!_pageController.hasClients) return;
+    final currentPage = _safePageValue(_pageController);
+    final isOutOfSync =
+        currentPage == null || (currentPage - selectedIndex).abs() > 0.01;
+    if (isOutOfSync) {
+      _pageController.jumpToPage(selectedIndex);
     }
   }
 
