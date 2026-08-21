@@ -468,6 +468,7 @@ class WorkoutHistory {
     required this.durationMinutes,
     required this.exerciseCount,
     required this.calories,
+    this.exercises = const [],
   });
 
   final String title;
@@ -475,6 +476,10 @@ class WorkoutHistory {
   final int durationMinutes;
   final int exerciseCount;
   final int calories;
+  // Snapshot gerakan PERSIS yang dijalankan saat sesi ini (termasuk kalau
+  // user memakai gerakan custom/manual), supaya halaman detail riwayat
+  // tetap akurat walau katalog gerakan berubah di kemudian hari.
+  final List<ExerciseData> exercises;
 
   Map<String, dynamic> toJson() => {
         'title': title,
@@ -482,6 +487,7 @@ class WorkoutHistory {
         'durationMinutes': durationMinutes,
         'exerciseCount': exerciseCount,
         'calories': calories,
+        'exercises': exercises.map((e) => e.toJson()).toList(),
       };
 
   factory WorkoutHistory.fromJson(Map<String, dynamic> json) {
@@ -492,6 +498,11 @@ class WorkoutHistory {
       durationMinutes: json['durationMinutes'] as int? ?? 0,
       exerciseCount: json['exerciseCount'] as int? ?? 0,
       calories: json['calories'] as int? ?? 0,
+      exercises: (json['exercises'] as List<dynamic>?)
+              ?.map((e) => ExerciseData.fromJson(
+                  Map<String, dynamic>.from(e as Map)))
+              .toList() ??
+          const [],
     );
   }
 }
@@ -544,6 +555,8 @@ class ScheduleItem {
     required this.active,
     this.reminderEnabled = true,
     this.reminderMinutes = 30,
+    this.exerciseMode = 'auto',
+    this.customExercises,
   });
 
   final String id;
@@ -553,6 +566,11 @@ class ScheduleItem {
   final bool active;
   final bool reminderEnabled;
   final int reminderMinutes;
+  // 'auto' = pakai preset default kategori, 'manual' = pakai customExercises.
+  final String exerciseMode;
+  final List<ExerciseData>? customExercises;
+
+  bool get isManualExercises => exerciseMode == 'manual';
 
   ScheduleItem copyWith({
     String? day,
@@ -561,6 +579,9 @@ class ScheduleItem {
     bool? active,
     bool? reminderEnabled,
     int? reminderMinutes,
+    String? exerciseMode,
+    List<ExerciseData>? customExercises,
+    bool clearCustomExercises = false,
   }) =>
       ScheduleItem(
         id: id,
@@ -570,6 +591,10 @@ class ScheduleItem {
         active: active ?? this.active,
         reminderEnabled: reminderEnabled ?? this.reminderEnabled,
         reminderMinutes: reminderMinutes ?? this.reminderMinutes,
+        exerciseMode: exerciseMode ?? this.exerciseMode,
+        customExercises: clearCustomExercises
+            ? null
+            : (customExercises ?? this.customExercises),
       );
 
   Map<String, dynamic> toJson() => {
@@ -580,6 +605,8 @@ class ScheduleItem {
         'active': active,
         'reminderEnabled': reminderEnabled,
         'reminderMinutes': reminderMinutes,
+        'exerciseMode': exerciseMode,
+        'customExercises': customExercises?.map((e) => e.toJson()).toList(),
       };
 
   factory ScheduleItem.fromJson(Map<String, dynamic> json) => ScheduleItem(
@@ -590,6 +617,11 @@ class ScheduleItem {
         active: json['active'] as bool? ?? true,
         reminderEnabled: json['reminderEnabled'] as bool? ?? true,
         reminderMinutes: json['reminderMinutes'] as int? ?? 30,
+        exerciseMode: json['exerciseMode'] as String? ?? 'auto',
+        customExercises: (json['customExercises'] as List<dynamic>?)
+            ?.map((e) =>
+                ExerciseData.fromJson(Map<String, dynamic>.from(e as Map)))
+            .toList(),
       );
 }
 
@@ -1727,8 +1759,9 @@ class DatabaseHelper {
 
     return await openDatabase(
       path,
-      version: 1,
+      version: 2,
       onCreate: _createDB,
+      onUpgrade: _upgradeDB,
     );
   }
 
@@ -1740,7 +1773,8 @@ class DatabaseHelper {
         completedAt TEXT NOT NULL,
         durationMinutes INTEGER NOT NULL,
         exerciseCount INTEGER NOT NULL,
-        calories INTEGER NOT NULL
+        calories INTEGER NOT NULL,
+        exercises TEXT
       )
     ''');
 
@@ -1752,20 +1786,39 @@ class DatabaseHelper {
         workout TEXT NOT NULL,
         active INTEGER NOT NULL,
         reminderEnabled INTEGER NOT NULL,
-        reminderMinutes INTEGER NOT NULL
+        reminderMinutes INTEGER NOT NULL,
+        exerciseMode TEXT,
+        customExercises TEXT
       )
     ''');
   }
 
+  // Migrasi dari versi lama: hanya menambah kolom baru, data lama milik
+  // pengguna (history & schedules) tidak dihapus atau diubah.
+  Future _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      try {
+        await db.execute('ALTER TABLE history ADD COLUMN exercises TEXT');
+      } catch (_) {}
+      try {
+        await db.execute('ALTER TABLE schedules ADD COLUMN exerciseMode TEXT');
+      } catch (_) {}
+      try {
+        await db.execute(
+            'ALTER TABLE schedules ADD COLUMN customExercises TEXT');
+      } catch (_) {}
+    }
+  }
+
   Future<void> insertHistory(WorkoutHistory history) async {
     final db = await instance.database;
-    await db.insert('history', history.toJson());
+    await db.insert('history', _historyToMap(history));
   }
 
   Future<List<WorkoutHistory>> getAllHistory() async {
     final db = await instance.database;
     final maps = await db.query('history', orderBy: 'completedAt DESC');
-    return maps.map((json) => WorkoutHistory.fromJson(json)).toList();
+    return maps.map((map) => _historyFromMap(map)).toList();
   }
 
   Future<void> insertSchedule(ScheduleItem schedule) async {
@@ -1795,10 +1848,29 @@ class DatabaseHelper {
     return maps.map((map) => _scheduleFromMap(map)).toList();
   }
 
+  Map<String, Object?> _historyToMap(WorkoutHistory history) {
+    final map = history.toJson();
+    map['exercises'] =
+        jsonEncode(history.exercises.map((e) => e.toJson()).toList());
+    return map;
+  }
+
+  WorkoutHistory _historyFromMap(Map<String, Object?> map) {
+    final mutableMap = Map<String, dynamic>.from(map);
+    final rawExercises = mutableMap['exercises'] as String?;
+    mutableMap['exercises'] = (rawExercises != null && rawExercises.isNotEmpty)
+        ? jsonDecode(rawExercises) as List<dynamic>
+        : <dynamic>[];
+    return WorkoutHistory.fromJson(mutableMap);
+  }
+
   Map<String, Object?> _scheduleToMap(ScheduleItem schedule) {
     final map = schedule.toJson();
     map['active'] = schedule.active ? 1 : 0;
     map['reminderEnabled'] = schedule.reminderEnabled ? 1 : 0;
+    map['customExercises'] = schedule.customExercises != null
+        ? jsonEncode(schedule.customExercises!.map((e) => e.toJson()).toList())
+        : null;
     return map;
   }
 
@@ -1806,6 +1878,11 @@ class DatabaseHelper {
     final mutableMap = Map<String, dynamic>.from(map);
     mutableMap['active'] = (mutableMap['active'] as int) == 1;
     mutableMap['reminderEnabled'] = (mutableMap['reminderEnabled'] as int) == 1;
+    final rawCustomExercises = mutableMap['customExercises'] as String?;
+    mutableMap['customExercises'] =
+        (rawCustomExercises != null && rawCustomExercises.isNotEmpty)
+            ? jsonDecode(rawCustomExercises) as List<dynamic>
+            : null;
     return ScheduleItem.fromJson(mutableMap);
   }
 }
@@ -2124,6 +2201,7 @@ class WorkoutAppState extends ChangeNotifier {
       durationMinutes: durationMinutes,
       exerciseCount: workout.exercises.length,
       calories: calories,
+      exercises: workout.exercises,
     );
     
     history = [newHistory, ...history];
