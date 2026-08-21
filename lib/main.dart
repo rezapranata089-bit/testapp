@@ -2941,7 +2941,7 @@ class _PageViewParallaxItem extends StatelessWidget {
          final absDistance = distance.abs();
 
          if (absDistance == 0.0) {
-           return prebuiltChild;
+           return prebuiltChild!;
          }
          
          // Memakai kurva agar perubahan scale lebih terasa fluid.
