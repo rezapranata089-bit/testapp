@@ -1943,6 +1943,9 @@ class WorkoutAppState extends ChangeNotifier {
     _load();
   }
 
+  final ValueNotifier<int> themeRevision = ValueNotifier(0);
+  final ValueNotifier<int> loadingRevision = ValueNotifier(0);
+
   ThemeMode themeMode = ThemeMode.system;
   int accentIndex = 0;
   bool isLoading = true;
@@ -2119,6 +2122,13 @@ class WorkoutAppState extends ChangeNotifier {
     return workoutDataForSchedule(todaySchedule.first);
   }
 
+  @override
+  void dispose() {
+    themeRevision.dispose();
+    loadingRevision.dispose();
+    super.dispose();
+  }
+
   Future<void> _load() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -2214,6 +2224,7 @@ class WorkoutAppState extends ChangeNotifier {
     }
 
     isLoading = false;
+    loadingRevision.value++;
     notifyListeners();
   }
 
@@ -2245,12 +2256,14 @@ class WorkoutAppState extends ChangeNotifier {
 
   void setThemeMode(ThemeMode value) {
     themeMode = value;
+    themeRevision.value++;
     notifyListeners();
     unawaited(_persist());
   }
 
   void setAccentIndex(int value) {
     accentIndex = value;
+    themeRevision.value++;
     notifyListeners();
     unawaited(_persist());
   }
@@ -2556,6 +2569,10 @@ class WorkoutRumahApp extends StatefulWidget {
 
 class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
   final appState = WorkoutAppState();
+  late final Listenable _chromeState = Listenable.merge([
+    appState.themeRevision,
+    appState.loadingRevision,
+  ]);
 
   @override
   void dispose() {
@@ -2566,7 +2583,7 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: appState,
+      animation: _chromeState,
       builder: (context, _) {
         final seed = appState.accentColor;
         return MaterialApp(
@@ -2611,7 +2628,15 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
           },
           home: appState.isLoading
               ? const SplashScreen()
-              : MainShell(key: mainShellKey, appState: appState),
+              : AnimatedBuilder(
+                  animation: appState,
+                  builder: (context, _) {
+                    return MainShell(
+                      key: mainShellKey,
+                      appState: appState,
+                    );
+                  },
+                ),
         );
       },
     );
@@ -3578,12 +3603,15 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                 child: SizedBox(
                   width: 280, 
                   height: 280,
-                  child: Lottie.asset(
-                    'assets/lottie/gym.json',
-                    fit: BoxFit.contain,
-                    alignment: Alignment.bottomRight,
-                    addRepaintBoundary: true,
-                    animate: widget.isActive,
+                  child: TickerMode(
+                    enabled: widget.isActive,
+                    child: Lottie.asset(
+                      'assets/lottie/gym.json',
+                      fit: BoxFit.contain,
+                      alignment: Alignment.bottomRight,
+                      addRepaintBoundary: true,
+                      animate: widget.isActive,
+                    ),
                   ),
                 ),
               ),
@@ -3883,9 +3911,16 @@ class WavePainter extends CustomPainter {
     shader.setFloat(11, 5.5);
     shader.setFloat(12, 15.0);
 
-    final shaderSteps = size.shortestSide < 360
+    final devicePixelRatio =
+        ui.PlatformDispatcher.instance.views.isNotEmpty
+            ? ui.PlatformDispatcher.instance.views.first.devicePixelRatio
+            : 1.0;
+    final physicalPixelArea =
+        size.width * size.height * devicePixelRatio * devicePixelRatio;
+
+    final shaderSteps = physicalPixelArea > 1200000
         ? 32.0
-        : size.shortestSide < 500
+        : physicalPixelArea > 700000
             ? 40.0
             : 48.0;
     shader.setFloat(13, shaderSteps);
