@@ -2454,6 +2454,13 @@ class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
     // selebar area yang belum tertutup panel baru, sehingga terlihat benar-
     // benar "kepotong" oleh tepi panel -- dipadu parallax (mundur & meredup
     // tipis) agar terasa fluid, bukan diam statis di belakang panel.
+    //
+    // CATATAN: sebelumnya dipakai Align(widthFactor: ...) untuk memotong,
+    // tapi area transisi route selalu diberi TIGHT constraints (ukuran layar
+    // penuh) oleh Navigator, sehingga widthFactor pada Align tidak berefek
+    // sama sekali (Align wajib mengisi constraints tight, tidak bisa
+    // menyusut). ClipRect dengan CustomClipper di bawah ini memotong
+    // berdasarkan ukuran render aktual, jadi selalu terlihat.
     final recede = CurvedAnimation(
       parent: secondaryAnimation,
       curve: Curves.easeOutCubic,
@@ -2464,41 +2471,56 @@ class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
       builder: (context, transitionChild) {
         final t = recede.value.clamp(0.0, 1.0);
         if (t <= 0.0) return transitionChild!;
-        final width = MediaQuery.of(context).size.width;
-        if (width <= 0) return transitionChild!;
-        final visibleFactor = (1 - t).clamp(0.0, 1.0);
+        final visibleFraction = (1 - t).clamp(0.0, 1.0);
         final scale = 1.0 - (t * 0.06);
         final dx = -t * 24.0;
         return ClipRect(
-          child: Align(
-            alignment: Alignment.centerLeft,
-            widthFactor: visibleFactor,
-            child: SizedBox(
-              width: width,
-              child: Transform(
-                alignment: Alignment.center,
-                transform: Matrix4.identity()
-                  ..translate(dx)
-                  ..scale(scale),
-                child: Stack(
-                  children: [
-                    transitionChild!,
-                    Positioned.fill(
-                      child: IgnorePointer(
-                        child: Container(
-                          color: Colors.black.withOpacity(t * 0.3),
-                        ),
-                      ),
+          clipper: _TabRecedeClipper(visibleFraction),
+          child: Transform(
+            alignment: Alignment.center,
+            transform: Matrix4.identity()
+              ..translate(dx)
+              ..scale(scale),
+            child: Stack(
+              children: [
+                transitionChild!,
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: Container(
+                      color: Colors.black.withOpacity(t * 0.3),
                     ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           ),
         );
       },
       child: fadeIn,
     );
+  }
+}
+
+// Memotong sisi KANAN halaman di belakang panel sebesar [visibleFraction]
+// dari lebar layar aktualnya (bukan lebar device statis), sehingga tepi
+// potongan selalu pas mengikuti ukuran render sesungguhnya dari halaman
+// yang sedang ditutupi -- inilah yang membuat efek "kepotong" oleh tepi
+// panel benar-benar terlihat, tidak seperti Align(widthFactor) yang gagal
+// menyusut akibat tight constraints dari Navigator.
+class _TabRecedeClipper extends CustomClipper<Rect> {
+  const _TabRecedeClipper(this.visibleFraction);
+
+  final double visibleFraction;
+
+  @override
+  Rect getClip(Size size) {
+    final width = (size.width * visibleFraction).clamp(0.0, size.width);
+    return Rect.fromLTWH(0, 0, width, size.height);
+  }
+
+  @override
+  bool shouldReclip(covariant _TabRecedeClipper oldClipper) {
+    return oldClipper.visibleFraction != visibleFraction;
   }
 }
 
