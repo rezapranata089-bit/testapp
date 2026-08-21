@@ -2815,7 +2815,7 @@ class _MainShellState extends State<MainShell> {
         ),
       ),
     ];
-    return Scaffold(
+    final scaffold = Scaffold(
       body: PageView(
         controller: _pageController,
         onPageChanged: (index) {
@@ -2830,6 +2830,46 @@ class _MainShellState extends State<MainShell> {
         selectedIndex: selectedIndex,
         onDestinationSelected: _onItemTapped,
       ),
+    );
+
+    // Efek "terdorong": saat panel full-screen (detail riwayat, sesi
+    // latihan) dibuka lewat _slidePageRoute di atas MainShell, seluruh isi
+    // shell ini (termasuk bottom nav) ikut mengecil, geser ke kiri, dan
+    // meredup -- seolah didorong mundur oleh panel yang masuk. Dengerin
+    // secondaryAnimation dari route MainShell sendiri sehingga otomatis
+    // sinkron dengan durasi push/pop panel apa pun di atasnya, tanpa perlu
+    // tahu route itu dibuka dari tab mana.
+    final secondaryAnimation = ModalRoute.of(context)?.secondaryAnimation;
+    if (secondaryAnimation == null) return scaffold;
+
+    return AnimatedBuilder(
+      animation: secondaryAnimation,
+      builder: (context, child) {
+        final t = Curves.easeOutQuart
+            .transform(secondaryAnimation.value.clamp(0.0, 1.0));
+        if (t <= 0.0) return child!;
+        final scale = 1.0 - (t * 0.08);
+        final dx = -t * 70.0;
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..translate(dx)
+            ..scale(scale),
+          child: Stack(
+            children: [
+              child!,
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    color: Colors.black.withOpacity(t * 0.65),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+      child: scaffold,
     );
   }
 }
