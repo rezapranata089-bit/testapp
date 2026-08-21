@@ -2237,6 +2237,8 @@ class WorkoutAppState extends ChangeNotifier {
     required String workout,
     required bool reminderEnabled,
     required int reminderMinutes,
+    String exerciseMode = 'auto',
+    List<ExerciseData>? customExercises,
   }) {
     final newItem = ScheduleItem(
       id: DateTime.now().microsecondsSinceEpoch.toString(),
@@ -2246,11 +2248,13 @@ class WorkoutAppState extends ChangeNotifier {
       active: true,
       reminderEnabled: reminderEnabled,
       reminderMinutes: reminderMinutes,
+      exerciseMode: exerciseMode,
+      customExercises: customExercises,
     );
-    
+
     schedules = [...schedules, newItem];
     notifyListeners();
-    
+
     if (kIsWeb) {
       unawaited(_persist());
     } else {
@@ -2325,6 +2329,8 @@ class WorkoutAppState extends ChangeNotifier {
     required String workout,
     required bool reminderEnabled,
     required int reminderMinutes,
+    String exerciseMode = 'auto',
+    List<ExerciseData>? customExercises,
   }) {
     schedules = schedules.map((item) {
       if (item.id == id) {
@@ -2334,12 +2340,15 @@ class WorkoutAppState extends ChangeNotifier {
           workout: workout,
           reminderEnabled: reminderEnabled,
           reminderMinutes: reminderMinutes,
+          exerciseMode: exerciseMode,
+          customExercises: customExercises,
+          clearCustomExercises: customExercises == null,
         );
       }
       return item;
     }).toList();
     notifyListeners();
-    
+
     final updatedItem = schedules.firstWhere((item) => item.id == id);
     if (kIsWeb) {
       unawaited(_persist());
@@ -4191,157 +4200,25 @@ class SchedulePage extends StatelessWidget {
   }
 
   Future<void> _showAddSchedule(BuildContext context) async {
-    final dayController = ValueNotifier('Senin');
-    final workoutController = ValueNotifier('Full Body');
-    TimeOfDay selectedTime = const TimeOfDay(hour: 18, minute: 30);
-    bool reminderEnabled = true;
-    int reminderMinutes = 30;
-
-    await showModalBottomSheet<void>(
+    final result = await showModalBottomSheet<_ScheduleFormResult>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                8,
-                20,
-                MediaQuery.of(context).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Buat jadwal baru',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                  ),
-                  const SizedBox(height: 20),
-                  DropdownButtonFormField<String>(
-                    value: dayController.value,
-                    decoration: const InputDecoration(labelText: 'Hari'),
-                    items: const [
-                      'Senin',
-                      'Selasa',
-                      'Rabu',
-                      'Kamis',
-                      'Jumat',
-                      'Sabtu',
-                      'Minggu',
-                    ]
-                        .map((day) =>
-                            DropdownMenuItem(value: day, child: Text(day)))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) dayController.value = value;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: workoutController.value,
-                    decoration: const InputDecoration(labelText: 'Workout'),
-                    items: const ['Full Body', 'Upper Body', 'Lower Body']
-                        .map((workout) => DropdownMenuItem(
-                              value: workout,
-                              child: Text(workout),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) workoutController.value = value;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Waktu'),
-                    subtitle: Text(selectedTime.format(context)),
-                    leading: const Icon(Icons.schedule_rounded),
-                    trailing: IconButton(
-                      onPressed: () async {
-                        final picked = await showTimePicker(
-                          context: context,
-                          initialTime: selectedTime,
-                        );
-                        if (picked != null) {
-                          setModalState(() => selectedTime = picked);
-                        }
-                      },
-                      icon: const Icon(Icons.edit_rounded),
-                    ),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Aktifkan reminder'),
-                    subtitle: Text(
-                      reminderMinutes == 0 
-                          ? 'Tepat saat latihan dimulai' 
-                          : '$reminderMinutes menit sebelum latihan'
-                    ),
-                    value: reminderEnabled,
-                    onChanged: (value) {
-                      setModalState(() => reminderEnabled = value);
-                    },
-                  ),
-                  if (reminderEnabled)
-                    DropdownButtonFormField<int>(
-                      value: reminderMinutes,
-                      decoration: const InputDecoration(
-                        labelText: 'Ingatkan saya',
-                      ),
-                      items: const [0, 5, 15, 30, 60]
-                          .map(
-                            (minutes) => DropdownMenuItem(
-                              value: minutes,
-                              child: Text(
-                                minutes == 0 
-                                    ? 'Tepat saat mulai (0 menit)' 
-                                    : '$minutes menit sebelumnya'
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setModalState(() => reminderMinutes = value);
-                        }
-                      },
-                    ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () {
-                        appState.addSchedule(
-                          day: dayController.value,
-                          time: selectedTime.format(context),
-                          workout: workoutController.value,
-                          reminderEnabled: reminderEnabled,
-                          reminderMinutes: reminderMinutes,
-                        );
-                        Navigator.pop(sheetContext);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Jadwal berhasil disimpan.'),
-                          ),
-                        );
-                      },
-                      child: const Text('Simpan Jadwal'),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      builder: (sheetContext) => const _ScheduleFormSheet(),
     );
-    dayController.dispose();
-    workoutController.dispose();
+    if (result == null || !context.mounted) return;
+    appState.addSchedule(
+      day: result.day,
+      time: result.time,
+      workout: result.workout,
+      reminderEnabled: result.reminderEnabled,
+      reminderMinutes: result.reminderMinutes,
+      exerciseMode: result.exerciseMode,
+      customExercises: result.customExercises,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Jadwal berhasil disimpan.')),
+    );
   }
 }
 
@@ -4545,173 +4422,26 @@ class _ScheduleListState extends State<_ScheduleList> {
   }
 
   Future<void> _showEditSchedule(BuildContext context, ScheduleItem schedule) async {
-    final dayController = ValueNotifier(schedule.day);
-    final workoutController = ValueNotifier(schedule.workout);
-    
-    TimeOfDay parseTime(String timeString) {
-      try {
-        final clean = timeString.replaceAll(RegExp(r'[^0-9:]'), '').trim();
-        final parts = clean.split(':');
-        int hour = int.parse(parts[0]);
-        int minute = int.parse(parts[1]);
-        if (timeString.toLowerCase().contains('pm') && hour < 12) hour += 12;
-        if (timeString.toLowerCase().contains('am') && hour == 12) hour = 0;
-        return TimeOfDay(hour: hour, minute: minute);
-      } catch (_) {
-        return const TimeOfDay(hour: 18, minute: 30);
-      }
-    }
-    
-    TimeOfDay selectedTime = parseTime(schedule.time);
-    bool reminderEnabled = schedule.reminderEnabled;
-    int reminderMinutes = schedule.reminderMinutes;
-
-    await showModalBottomSheet<void>(
+    final result = await showModalBottomSheet<_ScheduleFormResult>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (sheetContext) {
-        return StatefulBuilder(
-          builder: (context, setModalState) {
-            return Padding(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                8,
-                20,
-                MediaQuery.of(context).viewInsets.bottom + 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Edit jadwal',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w900,
-                        ),
-                  ),
-                  const SizedBox(height: 20),
-                  DropdownButtonFormField<String>(
-                    value: dayController.value,
-                    decoration: const InputDecoration(labelText: 'Hari'),
-                    items: const [
-                      'Senin',
-                      'Selasa',
-                      'Rabu',
-                      'Kamis',
-                      'Jumat',
-                      'Sabtu',
-                      'Minggu',
-                    ]
-                        .map((day) =>
-                            DropdownMenuItem(value: day, child: Text(day)))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) dayController.value = value;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  DropdownButtonFormField<String>(
-                    value: workoutController.value,
-                    decoration: const InputDecoration(labelText: 'Workout'),
-                    items: const ['Full Body', 'Upper Body', 'Lower Body']
-                        .map((workout) => DropdownMenuItem(
-                              value: workout,
-                              child: Text(workout),
-                            ))
-                        .toList(),
-                    onChanged: (value) {
-                      if (value != null) workoutController.value = value;
-                    },
-                  ),
-                  const SizedBox(height: 12),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Waktu'),
-                    subtitle: Text(selectedTime.format(context)),
-                    leading: const Icon(Icons.schedule_rounded),
-                    trailing: IconButton(
-                      onPressed: () async {
-                        final picked = await showTimePicker(
-                          context: context,
-                          initialTime: selectedTime,
-                        );
-                        if (picked != null) {
-                          setModalState(() => selectedTime = picked);
-                        }
-                      },
-                      icon: const Icon(Icons.edit_rounded),
-                    ),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Aktifkan reminder'),
-                    subtitle: Text(
-                      reminderMinutes == 0 
-                          ? 'Tepat saat latihan dimulai' 
-                          : '$reminderMinutes menit sebelum latihan'
-                    ),
-                    value: reminderEnabled,
-                    onChanged: (value) {
-                      setModalState(() => reminderEnabled = value);
-                    },
-                  ),
-                  if (reminderEnabled)
-                    DropdownButtonFormField<int>(
-                      value: reminderMinutes,
-                      decoration: const InputDecoration(
-                        labelText: 'Ingatkan saya',
-                      ),
-                      items: const [0, 5, 15, 30, 60]
-                          .map(
-                            (minutes) => DropdownMenuItem(
-                              value: minutes,
-                              child: Text(
-                                minutes == 0 
-                                    ? 'Tepat saat mulai (0 menit)' 
-                                    : '$minutes menit sebelumnya'
-                              ),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setModalState(() => reminderMinutes = value);
-                        }
-                      },
-                    ),
-                  const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () {
-                        widget.appState.updateSchedule(
-                          schedule.id,
-                          day: dayController.value,
-                          time: selectedTime.format(context),
-                          workout: workoutController.value,
-                          reminderEnabled: reminderEnabled,
-                          reminderMinutes: reminderMinutes,
-                        );
-                        Navigator.pop(sheetContext);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Jadwal berhasil diperbarui.'),
-                          ),
-                        );
-                      },
-                      child: const Text('Simpan Perubahan'),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
+      builder: (sheetContext) => _ScheduleFormSheet(initial: schedule),
     );
-    dayController.dispose();
-    workoutController.dispose();
+    if (result == null || !context.mounted) return;
+    widget.appState.updateSchedule(
+      schedule.id,
+      day: result.day,
+      time: result.time,
+      workout: result.workout,
+      reminderEnabled: result.reminderEnabled,
+      reminderMinutes: result.reminderMinutes,
+      exerciseMode: result.exerciseMode,
+      customExercises: result.customExercises,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Jadwal berhasil diperbarui.')),
+    );
   }
 
   @override
@@ -5109,6 +4839,643 @@ class _ScheduleEmptyState extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------
+// Form jadwal (dipakai bersama untuk tambah & edit jadwal)
+// ---------------------------------------------------------------------
+
+class _ScheduleFormResult {
+  const _ScheduleFormResult({
+    required this.day,
+    required this.time,
+    required this.workout,
+    required this.reminderEnabled,
+    required this.reminderMinutes,
+    required this.exerciseMode,
+    required this.customExercises,
+  });
+
+  final String day;
+  final String time;
+  final String workout;
+  final bool reminderEnabled;
+  final int reminderMinutes;
+  final String exerciseMode;
+  final List<ExerciseData>? customExercises;
+}
+
+// Mengecek apakah sebuah ExerciseData berasal dari katalog bawaan (bukan
+// gerakan custom buatan user), dipakai untuk memisahkan checklist katalog
+// dari daftar gerakan custom saat kategori berganti.
+bool _isCatalogExercise(ExerciseData exercise) {
+  return exerciseCatalog.values
+      .any((list) => list.any((catalogItem) => catalogItem.id == exercise.id));
+}
+
+class _ScheduleFormSheet extends StatefulWidget {
+  const _ScheduleFormSheet({this.initial});
+
+  final ScheduleItem? initial;
+
+  @override
+  State<_ScheduleFormSheet> createState() => _ScheduleFormSheetState();
+}
+
+class _ScheduleFormSheetState extends State<_ScheduleFormSheet> {
+  static const _days = [
+    'Senin',
+    'Selasa',
+    'Rabu',
+    'Kamis',
+    'Jumat',
+    'Sabtu',
+    'Minggu',
+  ];
+
+  late String _day;
+  late String _workout;
+  late TimeOfDay _time;
+  late bool _reminderEnabled;
+  late int _reminderMinutes;
+  late String _exerciseMode;
+  late List<ExerciseData> _manualExercises;
+
+  bool get _isEditing => widget.initial != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final initial = widget.initial;
+    _day = initial?.day ?? _days.first;
+    _workout = initial?.workout ?? workoutCategories.first;
+    _time = initial != null
+        ? _parseTime(initial.time)
+        : const TimeOfDay(hour: 18, minute: 30);
+    _reminderEnabled = initial?.reminderEnabled ?? true;
+    _reminderMinutes = initial?.reminderMinutes ?? 30;
+    _exerciseMode = initial?.exerciseMode ?? 'auto';
+    _manualExercises =
+        initial?.customExercises != null ? List.of(initial!.customExercises!) : [];
+  }
+
+  TimeOfDay _parseTime(String timeString) {
+    try {
+      final clean = timeString.replaceAll(RegExp(r'[^0-9:]'), '').trim();
+      final parts = clean.split(':');
+      int hour = int.parse(parts[0]);
+      int minute = int.parse(parts[1]);
+      if (timeString.toLowerCase().contains('pm') && hour < 12) hour += 12;
+      if (timeString.toLowerCase().contains('am') && hour == 12) hour = 0;
+      return TimeOfDay(hour: hour, minute: minute);
+    } catch (_) {
+      return const TimeOfDay(hour: 18, minute: 30);
+    }
+  }
+
+  void _onCategoryChanged(String value) {
+    setState(() {
+      _workout = value;
+      // Gerakan katalog dari kategori lama tidak relevan lagi untuk
+      // kategori baru, jadi dibersihkan. Gerakan custom buatan user
+      // (bukan dari katalog) tetap dipertahankan.
+      _manualExercises.removeWhere(_isCatalogExercise);
+    });
+  }
+
+  void _toggleCatalogExercise(ExerciseData exercise, bool selected) {
+    setState(() {
+      if (selected) {
+        _manualExercises.add(exercise);
+      } else {
+        _manualExercises.removeWhere((item) => item.id == exercise.id);
+      }
+    });
+  }
+
+  Future<void> _addCustomExercise() async {
+    final created = await showModalBottomSheet<ExerciseData>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => const _CustomExerciseSheet(),
+    );
+    if (created != null) {
+      setState(() => _manualExercises.add(created));
+    }
+  }
+
+  void _removeExercise(ExerciseData exercise) {
+    setState(() {
+      _manualExercises.removeWhere((item) => item.id == exercise.id);
+    });
+  }
+
+  bool get _canSave => _exerciseMode == 'auto' || _manualExercises.isNotEmpty;
+
+  void _save() {
+    if (!_canSave) return;
+    final result = _ScheduleFormResult(
+      day: _day,
+      time: _time.format(context),
+      workout: _workout,
+      reminderEnabled: _reminderEnabled,
+      reminderMinutes: _reminderMinutes,
+      exerciseMode: _exerciseMode,
+      customExercises: _exerciseMode == 'manual' ? _manualExercises : null,
+    );
+    Navigator.pop(context, result);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final catalog = exerciseCatalog[_workout] ?? const <ExerciseData>[];
+    final selectedIds = _manualExercises.map((e) => e.id).toSet();
+    final customExercises =
+        _manualExercises.where((e) => !_isCatalogExercise(e)).toList();
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        8,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              _isEditing ? 'Edit jadwal' : 'Buat jadwal baru',
+              style: theme.textTheme.headlineSmall?.copyWith(
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+            const SizedBox(height: 20),
+            DropdownButtonFormField<String>(
+              value: _day,
+              decoration: const InputDecoration(labelText: 'Hari'),
+              items: _days
+                  .map((day) => DropdownMenuItem(value: day, child: Text(day)))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) setState(() => _day = value);
+              },
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: _workout,
+              decoration: const InputDecoration(labelText: 'Kategori workout'),
+              items: workoutCategories
+                  .map((workout) =>
+                      DropdownMenuItem(value: workout, child: Text(workout)))
+                  .toList(),
+              onChanged: (value) {
+                if (value != null) _onCategoryChanged(value);
+              },
+            ),
+            const SizedBox(height: 12),
+            ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Waktu'),
+              subtitle: Text(_time.format(context)),
+              leading: const Icon(Icons.schedule_rounded),
+              trailing: IconButton(
+                onPressed: () async {
+                  final picked = await showTimePicker(
+                    context: context,
+                    initialTime: _time,
+                  );
+                  if (picked != null) setState(() => _time = picked);
+                },
+                icon: const Icon(Icons.edit_rounded),
+              ),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Aktifkan reminder'),
+              subtitle: Text(
+                _reminderMinutes == 0
+                    ? 'Tepat saat latihan dimulai'
+                    : '$_reminderMinutes menit sebelum latihan',
+              ),
+              value: _reminderEnabled,
+              onChanged: (value) => setState(() => _reminderEnabled = value),
+            ),
+            if (_reminderEnabled)
+              DropdownButtonFormField<int>(
+                value: _reminderMinutes,
+                decoration: const InputDecoration(labelText: 'Ingatkan saya'),
+                items: const [0, 5, 15, 30, 60]
+                    .map(
+                      (minutes) => DropdownMenuItem(
+                        value: minutes,
+                        child: Text(
+                          minutes == 0
+                              ? 'Tepat saat mulai (0 menit)'
+                              : '$minutes menit sebelumnya',
+                        ),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value != null) setState(() => _reminderMinutes = value);
+                },
+              ),
+            const SizedBox(height: 20),
+            Text(
+              'Gerakan',
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 10),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(
+                  value: 'auto',
+                  label: Text('Otomatis'),
+                  icon: Icon(Icons.auto_awesome_rounded),
+                ),
+                ButtonSegment(
+                  value: 'manual',
+                  label: Text('Manual'),
+                  icon: Icon(Icons.checklist_rounded),
+                ),
+              ],
+              selected: {_exerciseMode},
+              onSelectionChanged: (value) {
+                setState(() => _exerciseMode = value.first);
+              },
+            ),
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _exerciseMode == 'auto'
+                    ? 'Preset gerakan bawaan kategori "$_workout" akan dipakai otomatis.'
+                    : 'Pilih sendiri gerakan yang ingin dilatih untuk jadwal ini.',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ),
+            if (_exerciseMode == 'manual') ...[
+              const SizedBox(height: 16),
+              ...catalog.map(
+                (exercise) => _ExerciseCheckTile(
+                  exercise: exercise,
+                  selected: selectedIds.contains(exercise.id),
+                  onChanged: (value) => _toggleCatalogExercise(exercise, value),
+                ),
+              ),
+              if (customExercises.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  'Gerakan custom',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                ...customExercises.map(
+                  (exercise) => _ExerciseCheckTile(
+                    exercise: exercise,
+                    selected: true,
+                    onChanged: (_) => _removeExercise(exercise),
+                    isCustom: true,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              OutlinedButton.icon(
+                onPressed: _addCustomExercise,
+                icon: const Icon(Icons.add_rounded),
+                label: const Text('Tambah gerakan custom'),
+              ),
+              if (!_canSave) ...[
+                const SizedBox(height: 10),
+                Text(
+                  'Pilih minimal 1 gerakan untuk mode manual.',
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.error,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ],
+            const SizedBox(height: 22),
+            SizedBox(
+              width: double.infinity,
+              child: FilledButton(
+                onPressed: _canSave ? _save : null,
+                child: Text(_isEditing ? 'Simpan Perubahan' : 'Simpan Jadwal'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// Satu baris checklist gerakan (bawaan katalog atau custom) di form jadwal.
+class _ExerciseCheckTile extends StatelessWidget {
+  const _ExerciseCheckTile({
+    required this.exercise,
+    required this.selected,
+    required this.onChanged,
+    this.isCustom = false,
+  });
+
+  final ExerciseData exercise;
+  final bool selected;
+  final ValueChanged<bool> onChanged;
+  final bool isCustom;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      elevation: 0,
+      color: selected
+          ? theme.colorScheme.primaryContainer.withOpacity(0.35)
+          : theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () => onChanged(!selected),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: exercise.color,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(
+                  exercise.icon,
+                  size: 20,
+                  color: Colors.black.withOpacity(0.64),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      exercise.name,
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                    if (exercise.subtitle.isNotEmpty)
+                      Text(
+                        exercise.subtitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              isCustom
+                  ? IconButton(
+                      onPressed: () => onChanged(false),
+                      icon: const Icon(Icons.close_rounded),
+                      tooltip: 'Hapus gerakan',
+                    )
+                  : Checkbox(
+                      value: selected,
+                      onChanged: (value) => onChanged(value ?? false),
+                    ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// Bottom sheet form untuk membuat gerakan custom (nama + pilih icon).
+class _CustomExerciseSheet extends StatefulWidget {
+  const _CustomExerciseSheet();
+
+  @override
+  State<_CustomExerciseSheet> createState() => _CustomExerciseSheetState();
+}
+
+class _CustomExerciseSheetState extends State<_CustomExerciseSheet> {
+  final _nameController = TextEditingController();
+  IconData _selectedIcon = Icons.fitness_center_rounded;
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _pickIcon() async {
+    final picked = await showModalBottomSheet<IconData>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => const _IconPickerSheet(),
+    );
+    if (picked != null) setState(() => _selectedIcon = picked);
+  }
+
+  void _submit() {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) return;
+    final exercise = ExerciseData(
+      id: 'custom-${DateTime.now().microsecondsSinceEpoch}',
+      name: name,
+      subtitle: 'Gerakan custom',
+      sets: 3,
+      reps: 12,
+      restSeconds: 30,
+      color: const Color(0xFFD9E7FF),
+      icon: _selectedIcon,
+    );
+    Navigator.pop(context, exercise);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        20,
+        8,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Gerakan custom',
+            style: theme.textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Row(
+            children: [
+              GestureDetector(
+                onTap: _pickIcon,
+                child: Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primaryContainer,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Icon(
+                    _selectedIcon,
+                    color: theme.colorScheme.onPrimaryContainer,
+                    size: 28,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: TextField(
+                  controller: _nameController,
+                  textCapitalization: TextCapitalization.words,
+                  autofocus: true,
+                  decoration: const InputDecoration(labelText: 'Nama gerakan'),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          TextButton.icon(
+            onPressed: _pickIcon,
+            icon: const Icon(Icons.image_outlined),
+            label: const Text('Pilih icon lain'),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: _submit,
+              child: const Text('Tambahkan'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// Grid pemilihan icon untuk gerakan custom, bisa dicari lewat nama label.
+class _IconPickerSheet extends StatefulWidget {
+  const _IconPickerSheet();
+
+  @override
+  State<_IconPickerSheet> createState() => _IconPickerSheetState();
+}
+
+class _IconPickerSheetState extends State<_IconPickerSheet> {
+  String _query = '';
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final filtered = exerciseIconBank
+        .where((option) => option.label.toLowerCase().contains(_query.toLowerCase()))
+        .toList();
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.7,
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Pilih icon',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  TextField(
+                    decoration: const InputDecoration(
+                      hintText: 'Cari icon...',
+                      prefixIcon: Icon(Icons.search_rounded),
+                    ),
+                    onChanged: (value) => setState(() => _query = value),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: filtered.isEmpty
+                  ? Center(
+                      child: Text(
+                        'Icon tidak ditemukan',
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                    )
+                  : GridView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: 4,
+                        mainAxisSpacing: 12,
+                        crossAxisSpacing: 12,
+                        childAspectRatio: 0.85,
+                      ),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) {
+                        final option = filtered[index];
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(16),
+                          onTap: () => Navigator.pop(context, option.icon),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Container(
+                                width: 48,
+                                height: 48,
+                                decoration: BoxDecoration(
+                                  color: theme.colorScheme.surfaceContainerHighest,
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Icon(option.icon, color: theme.colorScheme.primary),
+                              ),
+                              const SizedBox(height: 6),
+                              Text(
+                                option.label,
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.labelSmall,
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
       ),
     );
   }
