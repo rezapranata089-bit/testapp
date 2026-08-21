@@ -2489,12 +2489,12 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
       // alpha channel dengan benar, sehingga Scaffold transparan (dipakai
       // agar gradient root terlihat) sempat terlihat hitam pekat selama
       // transisi. Menonaktifkan snapshotting menghilangkan flash hitam ini.
-      pageTransitionsTheme: const PageTransitionsTheme(
+      pageTransitionsTheme: PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: ZoomPageTransitionsBuilder(
+          TargetPlatform.android: const ZoomPageTransitionsBuilder(
             allowSnapshotting: false,
           ),
-          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+          TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
         },
       ),
       fontFamily: 'Satoshi',
