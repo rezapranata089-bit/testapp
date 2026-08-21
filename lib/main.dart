@@ -2401,6 +2401,31 @@ class WorkoutAppState extends ChangeNotifier {
   }
 }
 
+// Builder transisi custom yang HANYA melakukan fade sederhana, tanpa proses
+// snapshot/rasterize sama sekali (beda dengan ZoomPageTransitionsBuilder
+// bawaan Android yang me-rasterize halaman demi performa). Karena tidak ada
+// snapshot, bug Scaffold transparan sempat terlihat hitam pekat saat push
+// tidak akan pernah terjadi. Pendekatan ini juga tidak bergantung pada
+// parameter allowSnapshotting yang bisa berbeda ketersediaannya antar versi
+// Flutter SDK.
+class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
+  const _NoSnapshotFadeTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+      child: child,
+    );
+  }
+}
+
 class WorkoutRumahApp extends StatefulWidget {
   const WorkoutRumahApp({super.key});
 
@@ -2489,12 +2514,10 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
       // alpha channel dengan benar, sehingga Scaffold transparan (dipakai
       // agar gradient root terlihat) sempat terlihat hitam pekat selama
       // transisi. Menonaktifkan snapshotting menghilangkan flash hitam ini.
-      pageTransitionsTheme: PageTransitionsTheme(
+      pageTransitionsTheme: const PageTransitionsTheme(
         builders: {
-          TargetPlatform.android: const ZoomPageTransitionsBuilder(
-            allowSnapshotting: false,
-          ),
-          TargetPlatform.iOS: const CupertinoPageTransitionsBuilder(),
+          TargetPlatform.android: _NoSnapshotFadeTransitionsBuilder(),
+          TargetPlatform.iOS: _NoSnapshotFadeTransitionsBuilder(),
         },
       ),
       fontFamily: 'Satoshi',
