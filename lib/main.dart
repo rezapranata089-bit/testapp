@@ -2906,6 +2906,7 @@ class _MainShellState extends State<MainShell> {
     );
 
     return Scaffold(
+      extendBody: true, // Membentangkan halaman ke bawah navbar untuk mengisi celah sudut tumpul
       body: tabPageView,
       bottomNavigationBar: _SlidingNavigationBar(
         selectedIndex: selectedIndex,
@@ -3264,7 +3265,7 @@ class HomePage extends StatelessWidget {
     return SafeArea(
       top: false,
       child: ListView(
-        padding: const EdgeInsets.only(bottom: 40),
+        padding: const EdgeInsets.only(bottom: 120),
         children: [
           Padding(
             padding: EdgeInsets.fromLTRB(20, MediaQuery.of(context).padding.top + 32, 20, 0),
@@ -4407,7 +4408,7 @@ class SchedulePage extends StatelessWidget {
         // Menghapus padding horizontal ListView agar area swipe meluas sampai ke tepi layar
         padding: EdgeInsets.only(
           top: MediaQuery.of(context).padding.top + 32,
-          bottom: 40,
+          bottom: 120,
         ),
         children: [
           Padding(
@@ -5808,7 +5809,7 @@ class ProgressPage extends StatelessWidget {
           20,
           MediaQuery.of(context).padding.top + 32,
           20,
-          40,
+          120,
         ),
         children: [
           Text(
@@ -6292,7 +6293,7 @@ class ProfilePage extends StatelessWidget {
           20,
           MediaQuery.of(context).padding.top + 32,
           20,
-          40,
+          120,
         ),
         children: [
           Text(
