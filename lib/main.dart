@@ -3264,6 +3264,7 @@ class HomePage extends StatelessWidget {
     final todayWorkout = appState.todayWorkout;
     return SafeArea(
       top: false,
+      bottom: false,
       child: ListView(
         padding: const EdgeInsets.only(bottom: 120),
         children: [
@@ -4404,6 +4405,7 @@ class SchedulePage extends StatelessWidget {
     final theme = Theme.of(context);
     return SafeArea(
       top: false,
+      bottom: false,
       child: ListView(
         // Menghapus padding horizontal ListView agar area swipe meluas sampai ke tepi layar
         padding: EdgeInsets.only(
@@ -5804,6 +5806,7 @@ class ProgressPage extends StatelessWidget {
     final theme = Theme.of(context);
     return SafeArea(
       top: false,
+      bottom: false,
       child: ListView(
         padding: EdgeInsets.fromLTRB(
           20,
@@ -6288,6 +6291,7 @@ class ProfilePage extends StatelessWidget {
     final theme = Theme.of(context);
     return SafeArea(
       top: false,
+      bottom: false,
       child: ListView(
         padding: EdgeInsets.fromLTRB(
           20,
