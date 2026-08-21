@@ -42,10 +42,10 @@ float plasma(vec3 r, vec2 freq, vec4 tc) {
   return r.z - (sin(mx * freq.x) * uAmplitude + sin(my * freq.y) * uAmplitude + uHeight);
 }
 
-  float raymarch(vec3 pos, vec3 dir, vec2 freq, vec4 tc) {
-    float dist = 0.0;
-    for (int i = 0; i < 64; i++) {
-      if (float(i) >= uSteps) break;
+float raymarch(vec3 pos, vec3 dir, vec2 freq, vec4 tc) {
+  float dist = 0.0;
+  for (int i = 0; i < 64; i++) {
+    if (float(i) >= uSteps) break;
     float dscene = plasma(pos + dist * dir, freq, tc);
     if (abs(dscene) < 0.1) break;
     dist += 0.9 * dscene;
@@ -99,10 +99,10 @@ void main() {
   col = clamp(col, 0.0, 1.0);
 
   float alpha = clamp(t, 0.0, 1.0) * uOpacity;
-  if (uGrain > 0.5) {
-    float g = hash21(fragCoord.xy);
-    alpha += (g - 0.5) * uGrainIntensity;
-  }
+if (uGrain > 0.5) {
+  float g = hash21(fragCoord.xy);
+  alpha += (g - 0.5) * uGrainIntensity;
+}
   alpha = clamp(alpha, 0.0, 1.0);
 
   // Fade vertikal dihitung langsung di shader. Pakai kurva sinus (bukan

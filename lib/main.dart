@@ -2470,12 +2470,12 @@ Route<T> _slidePageRoute<T>(Widget page) {
       ));
       return SlideTransition(
         position: slideIn,
-        child: Material(
-          elevation: 12,
-          shadowColor: Colors.black.withOpacity(0.5),
-          color: Colors.transparent,
-          child: child,
-        ),
+        child:            Material(
+                     elevation: 6,
+                     shadowColor: Colors.black.withOpacity(0.5),
+                     color: Colors.transparent,
+                     child: child,
+                   ),
       );
     },
   );
@@ -2937,10 +2937,14 @@ class _PageViewParallaxItem extends StatelessWidget {
       animation: pageController,
       builder: (context, prebuiltChild) {
         final page = _safePageValue(pageController) ?? index.toDouble();
-        final distance = (page - index).clamp(-1.0, 1.0);
-        final absDistance = distance.abs();
-        
-        // Memakai kurva agar perubahan scale lebih terasa fluid.
+         final distance = (page - index).clamp(-1.0, 1.0);
+         final absDistance = distance.abs();
+
+         if (absDistance == 0.0) {
+           return prebuiltChild;
+         }
+         
+         // Memakai kurva agar perubahan scale lebih terasa fluid.
         final easedDistance = Curves.easeOutQuad.transform(absDistance);
         
         // Scale disesuaikan agar pas dan efek 3D tetap terasa
@@ -3017,7 +3021,7 @@ class _SlidingNavigationBar extends StatelessWidget {
               ]
             : null,
       ),
-      clipBehavior: Clip.antiAlias,
+      clipBehavior: Clip.hardEdge,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final itemWidth = constraints.maxWidth / items.length;
@@ -3578,6 +3582,7 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
                     'assets/lottie/gym.json',
                     fit: BoxFit.contain,
                     alignment: Alignment.bottomRight,
+                    addRepaintBoundary: true,
                     animate: widget.isActive,
                   ),
                 ),
@@ -3876,9 +3881,9 @@ class WavePainter extends CustomPainter {
     shader.setFloat(9, 1.11);
     shader.setFloat(10, 1.0);
     shader.setFloat(11, 5.5);
-    shader.setFloat(12, 15.0);
-    shader.setFloat(13, 48.0);
-    shader.setFloat(14, 1.0);
+shader.setFloat(12, 15.0);
+shader.setFloat(13, 48.0);
+shader.setFloat(14, 1.0);
     shader.setFloat(15, 1.0);
     shader.setFloat(16, 1.0);
     shader.setFloat(17, 0.05);
@@ -3966,12 +3971,23 @@ class _TiltCardState extends State<_TiltCard> {
     
     final x = ((localPos.dx / size.width) * 2 - 1).clamp(-1.0, 1.0);
     final y = ((localPos.dy / size.height) * 2 - 1).clamp(-1.0, 1.0);
+    final nextTiltX = -y * maxTilt;
+    final nextTiltY = x * maxTilt;
+    final nextGlareX = (localPos.dx / size.width).clamp(0.0, 1.0);
+    final nextGlareY = (localPos.dy / size.height).clamp(0.0, 1.0);
+
+    if ((nextTiltX - _tiltX).abs() < 0.15 &&
+        (nextTiltY - _tiltY).abs() < 0.15 &&
+        (nextGlareX - _glareX).abs() < 0.01 &&
+        (nextGlareY - _glareY).abs() < 0.01) {
+      return;
+    }
 
     setState(() {
-      _tiltX = -y * maxTilt; 
-      _tiltY = x * maxTilt;
-      _glareX = (localPos.dx / size.width).clamp(0.0, 1.0);
-      _glareY = (localPos.dy / size.height).clamp(0.0, 1.0);
+      _tiltX = nextTiltX;
+      _tiltY = nextTiltY;
+      _glareX = nextGlareX;
+      _glareY = nextGlareY;
     });
   }
 
@@ -4206,6 +4222,7 @@ class _ScrollRevealItemState extends State<_ScrollRevealItem>
 
     if (!_revealed && isVisible) {
       _revealed = true;
+      _scrollPosition?.removeListener(_checkVisibility);
       final delay = Duration(milliseconds: 70 * widget.staggerIndex);
       Future.delayed(delay, () {
         if (mounted && _revealed) _controller.forward(from: 0);
@@ -4837,8 +4854,11 @@ class _ScheduleTileState extends State<_ScheduleTile> with TickerProviderStateMi
       duration: const Duration(milliseconds: 300),
     );
     _slideController.addListener(() {
+      final nextExtent = _slideAnimation.value;
+      if ((nextExtent - _dragExtent).abs() < 0.002) return;
+
       setState(() {
-        _dragExtent = _slideAnimation.value;
+        _dragExtent = nextExtent;
         _swipeProgress = _dragExtent;
         widget.dragNotifier.value = _ScheduleDragState(
           index: widget.index,
@@ -5024,9 +5044,9 @@ class _ScheduleTileState extends State<_ScheduleTile> with TickerProviderStateMi
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: _TiltCard(
-                child: Card(
-                clipBehavior: Clip.antiAlias,
-                shape: RoundedRectangleBorder(
+                child:                  Card(
+                                 clipBehavior: Clip.hardEdge,
+                                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),
                   ),
                   child: Material(
