@@ -2449,14 +2449,16 @@ class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
   }
 }
 
-// Route kustom dengan transisi slide horizontal (dari kanan ke kiri) untuk
-// halaman yang ingin terasa "didorong masuk", dipakai khusus di beberapa
-// navigasi (mis. mulai sesi latihan, buka detail riwayat) agar terasa
-// lebih hidup dibanding fade transisi bawaan tema aplikasi.
+// Route kustom dengan transisi slide horizontal (dari kanan ke kiri).
+// Panel tujuan (lihat _panelBackgroundColor) WAJIB punya background
+// Scaffold solid sendiri -- rute ini murni menggeser posisi dan tidak lagi
+// menaruh backing warna di baliknya. Dengan begitu panel benar-benar
+// "menutup" UI tab di belakangnya secara bertahap mengikuti progres slide,
+// bukan tembus pandang/transparan.
 Route<T> _slidePageRoute<T>(Widget page) {
   return PageRouteBuilder<T>(
-    transitionDuration: const Duration(milliseconds: 400),
-    reverseTransitionDuration: const Duration(milliseconds: 320),
+    transitionDuration: const Duration(milliseconds: 380),
+    reverseTransitionDuration: const Duration(milliseconds: 300),
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
       final slideIn = Tween<Offset>(
@@ -2467,22 +2469,30 @@ Route<T> _slidePageRoute<T>(Widget page) {
         curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeInCubic,
       ));
-      final isDark = Theme.of(context).brightness == Brightness.dark;
-      // Backing solid di belakang konten yang di-slide. Scaffold di app ini
-      // sengaja transparan (supaya gradient root terlihat), tapi gradient
-      // root itu hanya SATU instance tetap di balik seluruh Navigator --
-      // begitu halaman baru digeser masuk pakai Transform, area yang belum
-      // tertutup penuh bisa menembus ke layer kosong di baliknya sehingga
-      // terlihat transparan/kelap-kelip. DecoratedBox ini menutup penuh
-      // area itu dengan warna dasar yang senada dengan gradient root.
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF111310) : const Color(0xFFF4F3F0),
+      // Elevation tipis di tepi panel selama animasi, memberi kesan panel
+      // benar-benar melayang & mendorong masuk menutupi konten lama,
+      // bukan sekadar geser datar tanpa kedalaman.
+      return SlideTransition(
+        position: slideIn,
+        child: Material(
+          elevation: 6,
+          shadowColor: Colors.black.withOpacity(0.35),
+          color: Colors.transparent,
+          child: child,
         ),
-        child: SlideTransition(position: slideIn, child: child),
       );
     },
   );
+}
+
+// Warna dasar panel full-screen (sesi latihan, detail riwayat) agar
+// Scaffold-nya solid dan tidak tembus pandang saat animasi slide berjalan.
+// Senada dengan warna dasar gradient root supaya transisi tetap terasa
+// menyatu, tapi tidak transparan seperti Scaffold tab biasa.
+Color _panelBackgroundColor(BuildContext context) {
+  return Theme.of(context).brightness == Brightness.dark
+      ? const Color(0xFF111310)
+      : const Color(0xFFF4F3F0);
 }
 
 class WorkoutRumahApp extends StatefulWidget {
@@ -6046,6 +6056,7 @@ class HistoryDetailPage extends StatelessWidget {
         ? item.exercises
         : workoutDataForType(item.title).exercises;
     return Scaffold(
+      backgroundColor: _panelBackgroundColor(context),
       appBar: AppBar(
         title: const Text(
           'Detail latihan',
@@ -6865,6 +6876,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
         ? '${secondsRemaining}s'
         : '$currentRep / ${exercise.reps}';
     return Scaffold(
+      backgroundColor: _panelBackgroundColor(context),
       appBar: AppBar(
         leading: IconButton(
           onPressed: () => _confirmExit(context),
