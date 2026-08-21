@@ -17,6 +17,7 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class NotificationService {
   static final NotificationService instance = NotificationService._init();
@@ -1936,6 +1937,9 @@ class WorkoutAppState extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.system;
   int accentIndex = 0;
   bool isLoading = true;
+  // Diisi otomatis dari pubspec.yaml lewat package_info_plus, dipakai di
+  // halaman Profil supaya versi app tidak perlu diupdate manual tiap rilis.
+  String appVersion = '';
   UserProfile profile = const UserProfile(
     name: 'Andi Ramadhan',
     email: 'andi@example.com',
@@ -2128,6 +2132,16 @@ class WorkoutAppState extends ChangeNotifier {
         );
       }
       _syncPhotoCache();
+
+      // Dibungkus try-catch terpisah agar kegagalan ambil info versi
+      // (jarang terjadi, tapi mungkin di beberapa platform/emulator) tidak
+      // sampai menggagalkan seluruh proses load data app.
+      try {
+        final packageInfo = await PackageInfo.fromPlatform();
+        appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+      } catch (_) {
+        appVersion = '';
+      }
 
       if (kIsWeb) {
         // --- LOGIKA UNTUK WEB (Browser Storage) ---
@@ -6259,13 +6273,17 @@ class ProfilePage extends StatelessWidget {
                    ),
                 ),
                  const Divider(height: 1, indent: 68),
-                 const ListTile(
-                   leading: Icon(Icons.info_outline_rounded),
-                   title: Text(
+                 ListTile(
+                   leading: const Icon(Icons.info_outline_rounded),
+                   title: const Text(
                      'Tentang Workout Rumah',
                      style: TextStyle(fontWeight: FontWeight.w700),
                    ),
-                   subtitle: Text('Versi MVP 1.1.0'),
+                   subtitle: Text(
+                     appState.appVersion.isEmpty
+                         ? 'Memuat versi...'
+                         : 'Versi ${appState.appVersion}',
+                   ),
                  ),
               ],
             ),
