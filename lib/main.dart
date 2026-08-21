@@ -2567,6 +2567,24 @@ SystemUiOverlayStyle _panelOverlayStyle(BuildContext context) {
   );
 }
 
+// Membaca PageController.page dengan aman. Getter bawaan `page`/`position`
+// melempar AssertionError ("ScrollController attached to multiple scroll
+// views") kalau controller SEMPAT ter-attach ke lebih dari satu Scrollable
+// dalam satu frame transisi (mis. saat sebuah route dipindah/dipop dan
+// widget PageView lama belum sempat detach sementara yang baru sudah
+// attach). `hasClients` saja tidak cukup karena tetap bernilai true walau
+// jumlah attachment lebih dari satu. Dibungkus try-catch supaya kondisi
+// transien seperti itu tidak menjatuhkan seluruh UI, cukup fallback ke
+// null/posisi index saja untuk frame itu.
+double? _safePageValue(PageController controller) {
+  if (!controller.hasClients) return null;
+  try {
+    return controller.page;
+  } catch (_) {
+    return null;
+  }
+}
+
 class WorkoutRumahApp extends StatefulWidget {
   const WorkoutRumahApp({super.key});
 
@@ -2947,11 +2965,7 @@ class _PageViewParallaxItem extends StatelessWidget {
     return AnimatedBuilder(
       animation: pageController,
       builder: (context, _) {
-        double page = index.toDouble();
-        if (pageController.hasClients &&
-            pageController.position.haveDimensions) {
-          page = pageController.page ?? index.toDouble();
-        }
+        final page = _safePageValue(pageController) ?? index.toDouble();
         final distance = (page - index).clamp(-1.0, 1.0);
         final absDistance = distance.abs();
         final scale = 1.0 - (absDistance * 0.06);
@@ -3255,8 +3269,7 @@ class _KeepAlivePageState extends State<_KeepAlivePage>
   }
 
   void _onScroll() {
-    if (!widget.pageController.hasClients) return;
-    final page = widget.pageController.page;
+    final page = _safePageValue(widget.pageController);
     if (page == null) return;
 
     // Hitung jarak dari posisi scroll PageView ke indeks tab ini.
@@ -3735,8 +3748,8 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
       animation: widget.pageController ?? const AlwaysStoppedAnimation(0.0),
       builder: (context, child) {
         final controller = widget.pageController;
-        final page = (controller != null && controller.hasClients)
-            ? (controller.page ?? 0.0)
+        final page = controller != null
+            ? (_safePageValue(controller) ?? 0.0)
             : 0.0;
         final distance = page.abs().clamp(0.0, 1.0);
         // Saat diam (distance 0), lewati ShaderMask sepenuhnya. Tanpa ini,
