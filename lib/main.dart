@@ -2442,9 +2442,62 @@ class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    return FadeTransition(
+    final fadeIn = FadeTransition(
       opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
       child: child,
+    );
+
+    // Saat route lain didorong masuk DI ATAS route ini (mis. tab Home yang
+    // berada di belakang panel Sesi Latihan / Detail Riwayat), secondaryAnimation
+    // berjalan 0->1 mengikuti kurva & durasi yang SAMA dengan panel baru yang
+    // slide masuk (lihat _slidePageRoute). Halaman di belakang di-clip PERSIS
+    // selebar area yang belum tertutup panel baru, sehingga terlihat benar-
+    // benar "kepotong" oleh tepi panel -- dipadu parallax (mundur & meredup
+    // tipis) agar terasa fluid, bukan diam statis di belakang panel.
+    final recede = CurvedAnimation(
+      parent: secondaryAnimation,
+      curve: Curves.easeOutCubic,
+      reverseCurve: Curves.easeInCubic,
+    );
+    return AnimatedBuilder(
+      animation: recede,
+      builder: (context, transitionChild) {
+        final t = recede.value.clamp(0.0, 1.0);
+        if (t <= 0.0) return transitionChild!;
+        final width = MediaQuery.of(context).size.width;
+        if (width <= 0) return transitionChild!;
+        final visibleFactor = (1 - t).clamp(0.0, 1.0);
+        final scale = 1.0 - (t * 0.06);
+        final dx = -t * 24.0;
+        return ClipRect(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            widthFactor: visibleFactor,
+            child: SizedBox(
+              width: width,
+              child: Transform(
+                alignment: Alignment.center,
+                transform: Matrix4.identity()
+                  ..translate(dx)
+                  ..scale(scale),
+                child: Stack(
+                  children: [
+                    transitionChild!,
+                    Positioned.fill(
+                      child: IgnorePointer(
+                        child: Container(
+                          color: Colors.black.withOpacity(t * 0.3),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+      child: fadeIn,
     );
   }
 }

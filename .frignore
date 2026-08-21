@@ -1,0 +1,3 @@
+# Folder/ekstensi tambahan yang di-skip FR Tool saat scan & patch
+# Format: satu nama folder per baris, atau *.ext untuk ekstensi
+q
