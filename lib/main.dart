@@ -2447,33 +2447,26 @@ class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
       child: child,
     );
 
-    // Saat route lain didorong masuk DI ATAS route ini (mis. tab Home yang
-    // berada di belakang panel Sesi Latihan / Detail Riwayat), secondaryAnimation
-    // berjalan 0->1 mengikuti kurva & durasi yang SAMA dengan panel baru yang
-    // slide masuk (lihat _slidePageRoute). Halaman di belakang di-clip PERSIS
-    // selebar area yang belum tertutup panel baru, sehingga terlihat benar-
-    // benar "kepotong" oleh tepi panel -- dipadu parallax (mundur & meredup
-    // tipis) agar terasa fluid, bukan diam statis di belakang panel.
-    //
-    // CATATAN: sebelumnya dipakai Align(widthFactor: ...) untuk memotong,
-    // tapi area transisi route selalu diberi TIGHT constraints (ukuran layar
-    // penuh) oleh Navigator, sehingga widthFactor pada Align tidak berefek
-    // sama sekali (Align wajib mengisi constraints tight, tidak bisa
-    // menyusut). ClipRect dengan CustomClipper di bawah ini memotong
-    // berdasarkan ukuran render aktual, jadi selalu terlihat.
+    // Transisi sekunder: memberikan efek "terdorong mundur" (fluid push) yang
+    // lebih dramatis pada tab Home / Progress saat panel detail terbuka.
     final recede = CurvedAnimation(
       parent: secondaryAnimation,
-      curve: Curves.easeOutCubic,
-      reverseCurve: Curves.easeInCubic,
+      curve: Curves.easeOutQuart,
+      reverseCurve: Curves.easeInQuart,
     );
+    
     return AnimatedBuilder(
       animation: recede,
       builder: (context, transitionChild) {
         final t = recede.value.clamp(0.0, 1.0);
         if (t <= 0.0) return transitionChild!;
         final visibleFraction = (1 - t).clamp(0.0, 1.0);
-        final scale = 1.0 - (t * 0.06);
-        final dx = -t * 24.0;
+        
+        // Efek parallax dan scale-down diperbesar agar tab di belakang 
+        // terasa benar-benar terdorong jauh secara fluid
+        final scale = 1.0 - (t * 0.085);
+        final dx = -t * 50.0; 
+        
         return ClipRect(
           clipper: _TabRecedeClipper(visibleFraction),
           child: Transform(
@@ -2487,7 +2480,8 @@ class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
                 Positioned.fill(
                   child: IgnorePointer(
                     child: Container(
-                      color: Colors.black.withOpacity(t * 0.3),
+                      // Efek menggelap lebih kuat menonjolkan panel di atasnya
+                      color: Colors.black.withOpacity(t * 0.45),
                     ),
                   ),
                 ),
@@ -2532,26 +2526,27 @@ class _TabRecedeClipper extends CustomClipper<Rect> {
 // bukan tembus pandang/transparan.
 Route<T> _slidePageRoute<T>(Widget page) {
   return PageRouteBuilder<T>(
-    transitionDuration: const Duration(milliseconds: 380),
-    reverseTransitionDuration: const Duration(milliseconds: 300),
+    transitionDuration: const Duration(milliseconds: 420),
+    reverseTransitionDuration: const Duration(milliseconds: 340),
     pageBuilder: (context, animation, secondaryAnimation) => page,
     transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      // Menggunakan easeOutQuart agar sinkron sempurna dengan efek
+      // "terdorong" (recede) di halaman background, terasa lebih fluid.
       final slideIn = Tween<Offset>(
         begin: const Offset(1.0, 0.0),
         end: Offset.zero,
       ).animate(CurvedAnimation(
         parent: animation,
-        curve: Curves.easeOutCubic,
-        reverseCurve: Curves.easeInCubic,
+        curve: Curves.easeOutQuart,
+        reverseCurve: Curves.easeInQuart,
       ));
-      // Elevation tipis di tepi panel selama animasi, memberi kesan panel
-      // benar-benar melayang & mendorong masuk menutupi konten lama,
-      // bukan sekadar geser datar tanpa kedalaman.
+      // Elevation dinaikkan agar kedalaman (depth) lebih terasa saat
+      // panel melayang masuk menutupi tab yang sedang terdorong mundur.
       return SlideTransition(
         position: slideIn,
         child: Material(
-          elevation: 6,
-          shadowColor: Colors.black.withOpacity(0.35),
+          elevation: 12,
+          shadowColor: Colors.black.withOpacity(0.45),
           color: Colors.transparent,
           child: child,
         ),
@@ -2681,6 +2676,9 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
         builders: {
           TargetPlatform.android: _NoSnapshotFadeTransitionsBuilder(),
           TargetPlatform.iOS: _NoSnapshotFadeTransitionsBuilder(),
+          TargetPlatform.windows: _NoSnapshotFadeTransitionsBuilder(),
+          TargetPlatform.macOS: _NoSnapshotFadeTransitionsBuilder(),
+          TargetPlatform.linux: _NoSnapshotFadeTransitionsBuilder(),
         },
       ),
       fontFamily: 'Satoshi',
