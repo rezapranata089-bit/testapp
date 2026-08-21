@@ -2484,6 +2484,19 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
       brightness: brightness,
       colorScheme: scheme,
       scaffoldBackgroundColor: Colors.transparent,
+      // Transisi zoom bawaan Android me-rasterize (snapshot) konten route
+      // saat animasi push/pop untuk performa. Snapshot ini tidak menjaga
+      // alpha channel dengan benar, sehingga Scaffold transparan (dipakai
+      // agar gradient root terlihat) sempat terlihat hitam pekat selama
+      // transisi. Menonaktifkan snapshotting menghilangkan flash hitam ini.
+      pageTransitionsTheme: const PageTransitionsTheme(
+        builders: {
+          TargetPlatform.android: ZoomPageTransitionsBuilder(
+            allowSnapshotting: false,
+          ),
+          TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
+        },
+      ),
       fontFamily: 'Satoshi',
       textTheme: ThemeData(brightness: brightness).textTheme.apply(
             fontFamily: 'Satoshi',
