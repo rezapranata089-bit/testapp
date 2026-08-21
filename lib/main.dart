@@ -1741,6 +1741,38 @@ WorkoutData workoutDataForType(String workoutType) {
   }
 }
 
+// Estimasi kasar durasi (menit) dari daftar gerakan: waktu kerja per set
+// (durationSeconds kalau ada, atau perkiraan 3 detik per repetisi) plus
+// rest antar set, dijumlah lalu dibulatkan ke atas.
+int _estimateWorkoutDuration(List<ExerciseData> exercises) {
+  if (exercises.isEmpty) return 15;
+  final totalSeconds = exercises.fold<int>(0, (total, exercise) {
+    final workSeconds = exercise.durationSeconds ?? (exercise.reps * 3);
+    final setSeconds = (workSeconds + exercise.restSeconds) * exercise.sets;
+    return total + setSeconds;
+  });
+  return (totalSeconds / 60).ceil().clamp(5, 90);
+}
+
+// Membangun WorkoutData untuk sebuah jadwal: pakai gerakan pilihan manual
+// user kalau mode manual & ada isinya, kalau tidak jatuh kembali ke preset
+// bawaan kategori (mode auto).
+WorkoutData workoutDataForSchedule(ScheduleItem schedule) {
+  if (schedule.isManualExercises &&
+      schedule.customExercises != null &&
+      schedule.customExercises!.isNotEmpty) {
+    final exercises = schedule.customExercises!;
+    return WorkoutData(
+      title: schedule.workout,
+      description: 'Latihan custom pilihanmu.',
+      difficulty: 'Custom',
+      durationMinutes: _estimateWorkoutDuration(exercises),
+      exercises: exercises,
+    );
+  }
+  return workoutDataForType(schedule.workout);
+}
+
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
   static Database? _database;
@@ -2054,14 +2086,15 @@ class WorkoutAppState extends ChangeNotifier {
   }
 
   // Latihan yang cocok dengan jadwal aktif hari ini. Jika tidak ada jadwal
-  // untuk hari ini, jatuh kembali ke Full Body sebagai default.
+  // untuk hari ini, jatuh kembali ke Full Body sebagai default. Kalau
+  // jadwal hari ini mode manual, pakai gerakan custom pilihan user.
   WorkoutData get todayWorkout {
     final todayName = _dayNames[DateTime.now().weekday - 1];
     final todaySchedule = schedules.where(
       (item) => item.active && item.day == todayName,
     );
     if (todaySchedule.isEmpty) return workoutOfTheDay;
-    return workoutDataForType(todaySchedule.first.workout);
+    return workoutDataForSchedule(todaySchedule.first);
   }
 
   Future<void> _load() async {
@@ -5811,7 +5844,12 @@ class HistoryDetailPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final historyWorkout = workoutDataForType(item.title);
+    // Pakai snapshot gerakan yang BENAR-BENAR dijalankan saat sesi ini.
+    // Fallback ke preset kategori hanya untuk data riwayat lama yang belum
+    // punya snapshot (exercises masih kosong).
+    final displayExercises = item.exercises.isNotEmpty
+        ? item.exercises
+        : workoutDataForType(item.title).exercises;
     return Scaffold(
       appBar: AppBar(
         title: const Text(
@@ -5878,7 +5916,7 @@ class HistoryDetailPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          ...historyWorkout.exercises.asMap().entries.map(
+          ...displayExercises.asMap().entries.map(
                 (entry) => Padding(
                   padding: const EdgeInsets.only(bottom: 10),
                   child: ExerciseListTile(
