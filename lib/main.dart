@@ -2791,7 +2791,7 @@ class _MainShellState extends State<MainShell> {
     });
     await _pageController.animateToPage(
       index,
-      duration: const Duration(milliseconds: 350),
+      duration: const Duration(milliseconds: 280),
       curve: Curves.easeOutCubic,
     );
     if (mounted) {
@@ -2902,8 +2902,6 @@ class _MainShellState extends State<MainShell> {
       ),
     );
 
-    _scheduleResyncCheck();
-
     return Scaffold(
       body: tabPageView,
       bottomNavigationBar: _SlidingNavigationBar(
@@ -2946,7 +2944,9 @@ class _PageViewParallaxItem extends StatelessWidget {
             ..scale(scale),
           child: Opacity(
             opacity: (1.0 - absDistance * 0.35).clamp(0.0, 1.0),
-            child: child,
+            child: RepaintBoundary(
+              child: child,
+            ),
           ),
         );
       },
