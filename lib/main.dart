@@ -3877,7 +3877,7 @@ class WavePainter extends CustomPainter {
     shader.setFloat(10, 1.0);
     shader.setFloat(11, 5.5);
     shader.setFloat(12, 15.0);
-    shader.setFloat(13, 70.0);
+    shader.setFloat(13, 48.0);
     shader.setFloat(14, 1.0);
     shader.setFloat(15, 1.0);
     shader.setFloat(16, 1.0);
