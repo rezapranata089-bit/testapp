@@ -18,6 +18,8 @@ import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
 import 'package:flutter_timezone/flutter_timezone.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 
 class NotificationService {
   static final NotificationService instance = NotificationService._init();
@@ -303,7 +305,12 @@ ui.FragmentProgram? wavesProgram;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
+  // Load data locale Indonesia (nama bulan dsb) untuk intl DateFormat.
+  // WAJIB dipanggil sebelum DateFormat(..., 'id_ID') dipakai di mana pun,
+  // kalau tidak app akan error saat runtime (bukan saat build).
+  await initializeDateFormatting('id_ID', null);
+
   await NotificationService.instance.initialize();
 
   try {
@@ -7096,21 +7103,7 @@ class _CompletionStat extends StatelessWidget {
 }
 
 String _formatDate(DateTime date) {
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'Mei',
-    'Jun',
-    'Jul',
-    'Agu',
-    'Sep',
-    'Okt',
-    'Nov',
-    'Des',
-  ];
-  return '${date.day} ${months[date.month - 1]} ${date.year}';
+  return DateFormat('d MMM yyyy', 'id_ID').format(date);
 }
 
 String _formatDuration(int seconds) {
@@ -7120,8 +7113,7 @@ String _formatDuration(int seconds) {
 }
 
 String _formatClock(DateTime date) {
-  return '${date.hour.toString().padLeft(2, '0')}:'
-      '${date.minute.toString().padLeft(2, '0')}';
+  return DateFormat('HH:mm').format(date);
 }
 
 String _initials(String name) {
