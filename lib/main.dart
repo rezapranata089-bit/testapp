@@ -2805,6 +2805,23 @@ class _MainShellState extends State<MainShell>
     }
   }
 
+  // Dipakai dari luar (mis. WorkoutCompletePage) untuk berpindah tab TANPA
+  // membuat instance MainShell baru. Sebelumnya kode membuat MainShell baru
+  // dengan GlobalKey yang SAMA (mainShellKey) lewat pushAndRemoveUntil --
+  // dua widget berbeda memakai satu GlobalKey yang sama membuat Flutter
+  // bingung memindahkan Element di antara keduanya selama transisi, yang
+  // berujung PageController lama & baru sama-sama sempat ter-attach ke
+  // ScrollPosition (error "ScrollController attached to multiple scroll
+  // views"). Dengan hanya mengganti tab dari instance MainShell yang SAMA
+  // (masih hidup di bawah panel), masalah itu tidak akan terjadi lagi.
+  void jumpToTab(int index) {
+    if (!mounted) return;
+    setState(() => selectedIndex = index);
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(index);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -7339,16 +7356,13 @@ class _WorkoutCompletePageState extends State<WorkoutCompletePage> {
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
-                   onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-                     MaterialPageRoute(
-                       builder: (_) => MainShell(
-                         key: mainShellKey,
-                         appState: appState,
-                         initialIndex: 2,
-                       ),
-                     ),
-                     (route) => false,
-                   ),
+                  // Kembali ke MainShell yang SUDAH ADA di bawah panel
+                  // (bukan membuat instance baru dengan GlobalKey yang sama),
+                  // supaya tidak ada dua PageController berebut attach.
+                  onPressed: () {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    mainShellKey.currentState?.jumpToTab(2);
+                  },
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 17),
                   ),
@@ -7360,12 +7374,10 @@ class _WorkoutCompletePageState extends State<WorkoutCompletePage> {
               ),
               const SizedBox(height: 10),
               TextButton(
-                 onPressed: () => Navigator.of(context).pushAndRemoveUntil(
-                   MaterialPageRoute(
-                     builder: (_) => MainShell(key: mainShellKey, appState: appState),
-                   ),
-                   (route) => false,
-                 ),
+                onPressed: () {
+                  Navigator.of(context).popUntil((route) => route.isFirst);
+                  mainShellKey.currentState?.jumpToTab(0);
+                },
                 child: const Text('Kembali ke Home'),
               ),
             ],
