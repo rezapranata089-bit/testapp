@@ -2467,7 +2467,20 @@ Route<T> _slidePageRoute<T>(Widget page) {
         curve: Curves.easeOutCubic,
         reverseCurve: Curves.easeInCubic,
       ));
-      return SlideTransition(position: slideIn, child: child);
+      final isDark = Theme.of(context).brightness == Brightness.dark;
+      // Backing solid di belakang konten yang di-slide. Scaffold di app ini
+      // sengaja transparan (supaya gradient root terlihat), tapi gradient
+      // root itu hanya SATU instance tetap di balik seluruh Navigator --
+      // begitu halaman baru digeser masuk pakai Transform, area yang belum
+      // tertutup penuh bisa menembus ke layer kosong di baliknya sehingga
+      // terlihat transparan/kelap-kelip. DecoratedBox ini menutup penuh
+      // area itu dengan warna dasar yang senada dengan gradient root.
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: isDark ? const Color(0xFF111310) : const Color(0xFFF4F3F0),
+        ),
+        child: SlideTransition(position: slideIn, child: child),
+      );
     },
   );
 }
@@ -2691,29 +2704,45 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      _KeepAlivePage(
-        tabIndex: 0,
+      _PageViewParallaxItem(
+        index: 0,
         pageController: _pageController,
-        child: HomePage(
-          appState: widget.appState,
-          isActive: selectedIndex == 0,
+        child: _KeepAlivePage(
+          tabIndex: 0,
           pageController: _pageController,
+          child: HomePage(
+            appState: widget.appState,
+            isActive: selectedIndex == 0,
+            pageController: _pageController,
+          ),
         ),
       ),
-      _KeepAlivePage(
-        tabIndex: 1,
+      _PageViewParallaxItem(
+        index: 1,
         pageController: _pageController,
-        child: SchedulePage(appState: widget.appState),
+        child: _KeepAlivePage(
+          tabIndex: 1,
+          pageController: _pageController,
+          child: SchedulePage(appState: widget.appState),
+        ),
       ),
-      _KeepAlivePage(
-        tabIndex: 2,
+      _PageViewParallaxItem(
+        index: 2,
         pageController: _pageController,
-        child: ProgressPage(appState: widget.appState),
+        child: _KeepAlivePage(
+          tabIndex: 2,
+          pageController: _pageController,
+          child: ProgressPage(appState: widget.appState),
+        ),
       ),
-      _KeepAlivePage(
-        tabIndex: 3,
+      _PageViewParallaxItem(
+        index: 3,
         pageController: _pageController,
-        child: ProfilePage(appState: widget.appState),
+        child: _KeepAlivePage(
+          tabIndex: 3,
+          pageController: _pageController,
+          child: ProfilePage(appState: widget.appState),
+        ),
       ),
     ];
     return Scaffold(
@@ -2731,6 +2760,50 @@ class _MainShellState extends State<MainShell> {
         selectedIndex: selectedIndex,
         onDestinationSelected: _onItemTapped,
       ),
+    );
+  }
+}
+
+// Memberi efek "terdorong" yang fluid saat berpindah tab: halaman yang
+// menjauh dari posisi tengah (baik akibat swipe manual maupun tap navbar)
+// mengecil & meredup sedikit, seolah didorong mundur oleh halaman yang
+// masuk -- bukan sekadar geser datar linear seperti PageView bawaan.
+class _PageViewParallaxItem extends StatelessWidget {
+  const _PageViewParallaxItem({
+    required this.index,
+    required this.pageController,
+    required this.child,
+  });
+
+  final int index;
+  final PageController pageController;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: pageController,
+      builder: (context, _) {
+        double page = index.toDouble();
+        if (pageController.hasClients &&
+            pageController.position.haveDimensions) {
+          page = pageController.page ?? index.toDouble();
+        }
+        final distance = (page - index).clamp(-1.0, 1.0);
+        final absDistance = distance.abs();
+        final scale = 1.0 - (absDistance * 0.06);
+        final translateX = distance * 26.0;
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..translate(translateX)
+            ..scale(scale),
+          child: Opacity(
+            opacity: (1.0 - absDistance * 0.35).clamp(0.0, 1.0),
+            child: child,
+          ),
+        );
+      },
     );
   }
 }
