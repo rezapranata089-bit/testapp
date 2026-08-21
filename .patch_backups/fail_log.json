@@ -34,5 +34,17 @@
     "block": 1,
     "layer": "auto_create_cancelled",
     "file": "android/app/proguard-rules.pro"
+  },
+  {
+    "timestamp": "2026-08-21 19:52:26",
+    "block": 1,
+    "layer": "not_found_in_project",
+    "file": "lib/main.dart"
+  },
+  {
+    "timestamp": "2026-08-21 19:52:52",
+    "block": 2,
+    "layer": "not_found_in_project",
+    "file": "lib/main.dart"
   }
 ]
