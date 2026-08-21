@@ -21,6 +21,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'package:confetti/confetti.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class NotificationService {
   static final NotificationService instance = NotificationService._init();
@@ -5805,38 +5806,69 @@ class _WeeklyActivityCard extends StatelessWidget {
           children: [
             SizedBox(
               height: 135,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: values.asMap().entries.map((entry) {
-                  final isLatest = entry.key == values.length - 1;
-                  return Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        width: 24,
-                        height: 100 * entry.value + 10,
-                        decoration: BoxDecoration(
-                          color: entry.value > 0.2
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.primaryContainer,
+              child: BarChart(
+                BarChartData(
+                  alignment: BarChartAlignment.spaceAround,
+                  maxY: 100,
+                  minY: 0,
+                  gridData: const FlGridData(show: false),
+                  borderData: FlBorderData(show: false),
+                  barTouchData: BarTouchData(enabled: false),
+                  titlesData: FlTitlesData(
+                    show: true,
+                    leftTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    topTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    rightTitles: const AxisTitles(
+                      sideTitles: SideTitles(showTitles: false),
+                    ),
+                    bottomTitles: AxisTitles(
+                      sideTitles: SideTitles(
+                        showTitles: true,
+                        reservedSize: 28,
+                        getTitlesWidget: (value, meta) {
+                          final index = value.toInt();
+                          if (index < 0 || index >= labels.length) {
+                            return const SizedBox.shrink();
+                          }
+                          final isLatest = index == values.length - 1;
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              labels[index],
+                              style: theme.textTheme.labelSmall?.copyWith(
+                                color: isLatest
+                                    ? theme.colorScheme.primary
+                                    : theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ),
+                  barGroups: values.asMap().entries.map((entry) {
+                    final barColor = entry.value > 0.2
+                        ? theme.colorScheme.primary
+                        : theme.colorScheme.primaryContainer;
+                    return BarChartGroupData(
+                      x: entry.key,
+                      barRods: [
+                        BarChartRodData(
+                          toY: entry.value * 100,
+                          color: barColor,
+                          width: 24,
                           borderRadius: BorderRadius.circular(10),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        labels[entry.key],
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          color: isLatest
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.onSurfaceVariant,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
+                      ],
+                    );
+                  }).toList(),
+                ),
+                duration: const Duration(milliseconds: 300),
               ),
             ),
             const SizedBox(height: 16),
