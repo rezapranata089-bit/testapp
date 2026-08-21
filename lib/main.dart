@@ -2522,6 +2522,22 @@ Route<T> _slidePageRoute<T>(Widget page) {
   );
 }
 
+// GlobalKey ke State MainShell, dipakai supaya panel full-screen (detail
+// riwayat, sesi latihan) yang dibuka dari tab manapun bisa langsung memicu
+// efek "terdorong" pada seluruh shell secara manual -- tidak bergantung ke
+// secondaryAnimation route bawaan Flutter yang ternyata tidak konsisten
+// terpicu untuk kombinasi Navigator.push + PageRouteBuilder kustom.
+final GlobalKey<_MainShellState> mainShellKey = GlobalKey<_MainShellState>();
+
+// Pengganti Navigator.push(_slidePageRoute(...)) langsung. Memicu MainShell
+// mengecil/meredup SEBELUM push, lalu mengembalikannya begitu panel ditutup.
+Future<T?> _pushPanel<T>(BuildContext context, Widget page) async {
+  mainShellKey.currentState?._setReceded(true);
+  final result = await Navigator.of(context).push<T>(_slidePageRoute<T>(page));
+  mainShellKey.currentState?._setReceded(false);
+  return result;
+}
+
 // Warna dasar panel full-screen (sesi latihan, detail riwayat) agar
 // Scaffold-nya solid dan tidak tembus pandang saat animasi slide berjalan.
 // Senada dengan warna dasar gradient root supaya transisi tetap terasa
@@ -2615,7 +2631,7 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
           },
           home: appState.isLoading
               ? const SplashScreen()
-              : MainShell(appState: appState),
+              : MainShell(key: mainShellKey, appState: appState),
         );
       },
     );
@@ -2737,10 +2753,27 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell>
+    with SingleTickerProviderStateMixin {
   int selectedIndex = 0;
   late PageController _pageController;
   bool _isNavigating = false;
+
+  // Dipicu manual oleh _pushPanel() setiap kali panel full-screen dibuka
+  // atau ditutup, supaya efek "terdorong" pasti berjalan.
+  late final AnimationController _recedeController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 450),
+    reverseDuration: const Duration(milliseconds: 350),
+  );
+
+  void _setReceded(bool receded) {
+    if (receded) {
+      _recedeController.forward();
+    } else {
+      _recedeController.reverse();
+    }
+  }
 
   @override
   void initState() {
@@ -2752,6 +2785,7 @@ class _MainShellState extends State<MainShell> {
   @override
   void dispose() {
     _pageController.dispose();
+    _recedeController.dispose();
     super.dispose();
   }
 
@@ -2832,21 +2866,13 @@ class _MainShellState extends State<MainShell> {
       ),
     );
 
-    // Efek "terdorong": saat panel full-screen (detail riwayat, sesi
-    // latihan) dibuka lewat _slidePageRoute di atas MainShell, seluruh isi
-    // shell ini (termasuk bottom nav) ikut mengecil, geser ke kiri, dan
-    // meredup -- seolah didorong mundur oleh panel yang masuk. Dengerin
-    // secondaryAnimation dari route MainShell sendiri sehingga otomatis
-    // sinkron dengan durasi push/pop panel apa pun di atasnya, tanpa perlu
-    // tahu route itu dibuka dari tab mana.
-    final secondaryAnimation = ModalRoute.of(context)?.secondaryAnimation;
-    if (secondaryAnimation == null) return scaffold;
-
+    // Efek "terdorong": seluruh isi shell (termasuk bottom nav) mengecil,
+    // geser ke kiri, dan meredup saat panel full-screen dibuka di atasnya
+    // lewat _pushPanel() -- lalu kembali normal begitu panel ditutup.
     return AnimatedBuilder(
-      animation: secondaryAnimation,
+      animation: _recedeController,
       builder: (context, child) {
-        final t = Curves.easeOutQuart
-            .transform(secondaryAnimation.value.clamp(0.0, 1.0));
+        final t = Curves.easeOutQuart.transform(_recedeController.value);
         if (t <= 0.0) return child!;
         final scale = 1.0 - (t * 0.08);
         final dx = -t * 70.0;
@@ -3658,10 +3684,9 @@ class _TodayWorkoutCardState extends State<_TodayWorkoutCard>
           SizedBox(
             width: double.infinity,
             child: FilledButton(
-              onPressed: () => Navigator.of(context).push(
-                _slidePageRoute(
-                  WorkoutSessionPage(appState: widget.appState),
-                ),
+              onPressed: () => _pushPanel(
+                context,
+                WorkoutSessionPage(appState: widget.appState),
               ),
               style: FilledButton.styleFrom(
                 backgroundColor: Colors.white.withOpacity(0.95),
@@ -5914,10 +5939,9 @@ class ProgressPage extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: 10),
                      child: _HistoryTile(
                        item: item,
-                       onTap: () => Navigator.of(context).push(
-                         _slidePageRoute(
-                           HistoryDetailPage(item: item),
-                         ),
+                       onTap: () => _pushPanel(
+                         context,
+                         HistoryDetailPage(item: item),
                        ),
                      ),
                   ),
@@ -7308,6 +7332,7 @@ class _WorkoutCompletePageState extends State<WorkoutCompletePage> {
                    onPressed: () => Navigator.of(context).pushAndRemoveUntil(
                      MaterialPageRoute(
                        builder: (_) => MainShell(
+                         key: mainShellKey,
                          appState: appState,
                          initialIndex: 2,
                        ),
@@ -7327,7 +7352,7 @@ class _WorkoutCompletePageState extends State<WorkoutCompletePage> {
               TextButton(
                  onPressed: () => Navigator.of(context).pushAndRemoveUntil(
                    MaterialPageRoute(
-                     builder: (_) => MainShell(appState: appState),
+                     builder: (_) => MainShell(key: mainShellKey, appState: appState),
                    ),
                    (route) => false,
                  ),
