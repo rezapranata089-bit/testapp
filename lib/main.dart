@@ -2822,6 +2822,15 @@ class _MainShellState extends State<MainShell>
     }
   }
 
+  // Pengecekan tambahan yang dijalankan setelah SETIAP build (bukan hanya
+  // setelah panel ditutup), sebagai lapisan proteksi kedua. Murah untuk
+  // dijalankan (hanya baca+banding angka), dan jumpToPage tidak memicu
+  // rebuild berulang tanpa henti karena begitu posisi sudah cocok,
+  // kondisi isOutOfSync bernilai false dan loop berhenti dengan sendirinya.
+  void _scheduleResyncCheck() {
+    WidgetsBinding.instance.addPostFrameCallback((_) => _resyncPageView());
+  }
+
   @override
   void initState() {
     super.initState();
@@ -2914,15 +2923,45 @@ class _MainShellState extends State<MainShell>
       ),
     ];
 
-    final tabPageView = PageView(
-      controller: _pageController,
-      onPageChanged: (index) {
-        // Hanya ubah state jika pengguna yang menggeser manual (swipe)
-        if (!_isNavigating) {
-          setState(() => selectedIndex = index);
+    // NotificationListener ini adalah jaring pengaman terakhir: APAPUN
+    // penyebab desync-nya (race _isNavigating, animasi yang terpotong,
+    // atau kondisi lain yang belum ketahuan), begitu PageView benar-benar
+    // BERHENTI bergulir (ScrollEndNotification), kita baca posisi
+    // SEBENARNYA lalu paksa selectedIndex (yang menentukan highlight
+    // navbar) untuk mengikuti posisi itu. Ini membalik arah sinkronisasi
+    // dari _resyncPageView (yang memaksa PageView mengikuti selectedIndex
+    // setelah panel ditutup) -- dengan dua arah ini aktif sekaligus,
+    // kapan pun salah satu dari keduanya (konten atau navbar) "kebablasan"
+    // dari yang lain, frame berikutnya akan otomatis mengoreksinya.
+    final tabPageView = NotificationListener<ScrollEndNotification>(
+      onNotification: (notification) {
+        final settledPage = _safePageValue(_pageController)?.round();
+        if (settledPage != null &&
+            settledPage != selectedIndex &&
+            settledPage >= 0 &&
+            settledPage < 4) {
+          setState(() {
+            selectedIndex = settledPage;
+            _isNavigating = false;
+          });
+        } else if (_isNavigating) {
+          // Scroll sudah berhenti tapi flag lupa direset (mis. akibat
+          // animateToPage yang diinterupsi) -- bersihkan agar swipe
+          // manual berikutnya tidak terkunci oleh guard di onPageChanged.
+          _isNavigating = false;
         }
+        return false;
       },
-      children: pages,
+      child: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          // Hanya ubah state jika pengguna yang menggeser manual (swipe)
+          if (!_isNavigating) {
+            setState(() => selectedIndex = index);
+          }
+        },
+        children: pages,
+      ),
     );
 
     // Efek "terdorong" kini HANYA dibungkus di sekitar konten tab (body),
@@ -2963,6 +3002,8 @@ class _MainShellState extends State<MainShell>
       },
       child: tabPageView,
     );
+
+    _scheduleResyncCheck();
 
     return Scaffold(
       body: recededBody,
