@@ -2495,6 +2495,25 @@ Color _panelBackgroundColor(BuildContext context) {
       : const Color(0xFFF4F3F0);
 }
 
+// AppBar transparan (appBarTheme.backgroundColor = Colors.transparent) di
+// tema aplikasi ini membuat Flutter menghitung status bar icon brightness
+// sendiri dari luminance warna transparan tsb (selalu dianggap gelap),
+// sehingga AppBar SELALU memaksa ikon status bar putih/terang meski
+// panelnya bertema terang -- menimpa AnnotatedRegion global di MaterialApp.
+// Helper ini dipasang eksplisit ke tiap AppBar panel agar ikon status bar
+// mengikuti brightness tema panel yang sebenarnya.
+SystemUiOverlayStyle _panelOverlayStyle(BuildContext context) {
+  final isDark = Theme.of(context).brightness == Brightness.dark;
+  return SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+    statusBarBrightness: isDark ? Brightness.dark : Brightness.light,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+    systemNavigationBarContrastEnforced: false,
+  );
+}
+
 class WorkoutRumahApp extends StatefulWidget {
   const WorkoutRumahApp({super.key});
 
@@ -6058,6 +6077,7 @@ class HistoryDetailPage extends StatelessWidget {
     return Scaffold(
       backgroundColor: _panelBackgroundColor(context),
       appBar: AppBar(
+        systemOverlayStyle: _panelOverlayStyle(context),
         title: const Text(
           'Detail latihan',
           style: TextStyle(fontWeight: FontWeight.w800),
@@ -6878,6 +6898,7 @@ class _WorkoutSessionPageState extends State<WorkoutSessionPage> {
     return Scaffold(
       backgroundColor: _panelBackgroundColor(context),
       appBar: AppBar(
+        systemOverlayStyle: _panelOverlayStyle(context),
         leading: IconButton(
           onPressed: () => _confirmExit(context),
           icon: const Icon(Icons.close_rounded),
