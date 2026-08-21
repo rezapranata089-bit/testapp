@@ -2430,7 +2430,6 @@ class WorkoutAppState extends ChangeNotifier {
 // snapshot, bug Scaffold transparan sempat terlihat hitam pekat saat push
 // tidak akan pernah terjadi. Pendekatan ini juga tidak bergantung pada
 // parameter allowSnapshotting yang bisa berbeda ketersediaannya antar versi
-// Flutter SDK.
 class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
   const _NoSnapshotFadeTransitionsBuilder();
 
@@ -2442,30 +2441,10 @@ class _NoSnapshotFadeTransitionsBuilder extends PageTransitionsBuilder {
     Animation<double> secondaryAnimation,
     Widget child,
   ) {
-    return FadeTransition(
+    final fadeIn = FadeTransition(
       opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
       child: child,
     );
-  }
-}
-
-// Memotong sisi KANAN halaman di belakang panel sebesar [visibleFraction]
-// dari lebar layar aktualnya (bukan lebar device statis), sehingga tepi
-// potongan selalu pas mengikuti ukuran render sesungguhnya dari halaman
-// yang sedang ditutupi -- inilah yang membuat efek "kepotong" oleh tepi
-// panel benar-benar terlihat, tidak seperti Align(widthFactor) yang gagal
-// menyusut akibat tight constraints dari Navigator.
-class _FluidRecedeWrapper extends StatelessWidget {
-  const _FluidRecedeWrapper({required this.child});
-  
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final route = ModalRoute.of(context);
-    if (route == null) return child;
-    final secondaryAnimation = route.secondaryAnimation;
-    if (secondaryAnimation == null) return child;
 
     final recede = CurvedAnimation(
       parent: secondaryAnimation,
@@ -2475,55 +2454,38 @@ class _FluidRecedeWrapper extends StatelessWidget {
 
     return AnimatedBuilder(
       animation: recede,
-      builder: (context, childWidget) {
+      builder: (context, transitionChild) {
         final t = recede.value.clamp(0.0, 1.0);
-        if (t <= 0.0) return childWidget!;
-        
-        final scale = 1.0 - (t * 0.065);
-        final dx = -t * 45.0;
-        final visibleFraction = (1 - t).clamp(0.0, 1.0);
+        if (t <= 0.0) return transitionChild!;
 
-        return ClipRect(
-          clipper: _TabRecedeClipper(visibleFraction),
-          child: Transform(
-            alignment: Alignment.center,
-            transform: Matrix4.identity()
-              ..translate(dx)
-              ..scale(scale),
-            child: Stack(
-              children: [
-                childWidget!,
-                Positioned.fill(
-                  child: IgnorePointer(
-                    child: Container(
-                      color: Colors.black.withOpacity(t * 0.5),
-                    ),
+        // Halaman di belakang (Home/Progress) akan mengecil dan bergeser
+        // ke kiri TANPA dipotong (no ClipRect). Ini membuat efek terdorong
+        // terlihat sangat jelas dan mulus di balik bayangan panel baru.
+        final scale = 1.0 - (t * 0.08);
+        final dx = -t * 70.0;
+
+        return Transform(
+          alignment: Alignment.center,
+          transform: Matrix4.identity()
+            ..translate(dx)
+            ..scale(scale),
+          child: Stack(
+            children: [
+              transitionChild!,
+              // Efek bayangan gelap yang makin pekat saat panel menutupi
+              Positioned.fill(
+                child: IgnorePointer(
+                  child: Container(
+                    color: Colors.black.withOpacity(t * 0.65),
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         );
       },
-      child: child,
+      child: fadeIn,
     );
-  }
-}
-
-class _TabRecedeClipper extends CustomClipper<Rect> {
-  const _TabRecedeClipper(this.visibleFraction);
-
-  final double visibleFraction;
-
-  @override
-  Rect getClip(Size size) {
-    final width = (size.width * visibleFraction).clamp(0.0, size.width);
-    return Rect.fromLTWH(0, 0, width, size.height);
-  }
-
-  @override
-  bool shouldReclip(covariant _TabRecedeClipper oldClipper) {
-    return oldClipper.visibleFraction != visibleFraction;
   }
 }
 
@@ -2678,12 +2640,13 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
       // agar gradient root terlihat) sempat terlihat hitam pekat selama
       // transisi. Menonaktifkan snapshotting menghilangkan flash hitam ini.
       pageTransitionsTheme: const PageTransitionsTheme(
-        builders: {
+        builders: <TargetPlatform, PageTransitionsBuilder>{
           TargetPlatform.android: _NoSnapshotFadeTransitionsBuilder(),
           TargetPlatform.iOS: _NoSnapshotFadeTransitionsBuilder(),
           TargetPlatform.windows: _NoSnapshotFadeTransitionsBuilder(),
           TargetPlatform.macOS: _NoSnapshotFadeTransitionsBuilder(),
           TargetPlatform.linux: _NoSnapshotFadeTransitionsBuilder(),
+          TargetPlatform.fuchsia: _NoSnapshotFadeTransitionsBuilder(),
         },
       ),
       fontFamily: 'Satoshi',
@@ -2852,22 +2815,20 @@ class _MainShellState extends State<MainShell> {
         ),
       ),
     ];
-    return _FluidRecedeWrapper(
-      child: Scaffold(
-        body: PageView(
-          controller: _pageController,
-          onPageChanged: (index) {
-            // Hanya ubah state jika pengguna yang menggeser manual (swipe)
-            if (!_isNavigating) {
-              setState(() => selectedIndex = index);
-            }
-          },
-          children: pages,
-        ),
-        bottomNavigationBar: _SlidingNavigationBar(
-          selectedIndex: selectedIndex,
-          onDestinationSelected: _onItemTapped,
-        ),
+    return Scaffold(
+      body: PageView(
+        controller: _pageController,
+        onPageChanged: (index) {
+          // Hanya ubah state jika pengguna yang menggeser manual (swipe)
+          if (!_isNavigating) {
+            setState(() => selectedIndex = index);
+          }
+        },
+        children: pages,
+      ),
+      bottomNavigationBar: _SlidingNavigationBar(
+        selectedIndex: selectedIndex,
+        onDestinationSelected: _onItemTapped,
       ),
     );
   }
