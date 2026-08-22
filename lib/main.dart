@@ -2989,10 +2989,14 @@ class _PageViewParallaxItem extends StatelessWidget {
         final opacity = (1.0 - (easedDistance * 0.45)).clamp(0.0, 1.0);
 
         return Transform(
-          // Anchor diletakkan di bawah (bottomCenter).
-          // Ini memastikan saat halaman mengecil, batas bawahnya tetap menempel
-          // tegak lurus pada navbar, menghilangkan celah kosong (terpotong).
-          alignment: Alignment.bottomCenter,
+          // Anchor di TENGAH (bukan bottomCenter). bottomCenter membuat sisi
+          // ATAS halaman ikut turun/menjauh saat mengecil (scale<1), sehingga
+          // muncul celah kosong tepat di bagian atas layar saat swipe --
+          // itulah bug "UI terpotong di atas". Dengan anchor center, celah
+          // kosong terbagi rata ke atas & bawah (jauh lebih kecil & halus).
+          // Celah kecil di bawah otomatis tertutup oleh navbar (extendBody:
+          // true, navbar digambar di atas & opaque), jadi tidak terlihat.
+          alignment: Alignment.center,
           transform: Matrix4.identity()
             ..translate(translateX)
             ..scale(scale),
