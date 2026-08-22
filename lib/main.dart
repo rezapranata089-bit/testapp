@@ -2935,20 +2935,35 @@ class _MainShellState extends State<MainShell> {
     final tabPageView = NotificationListener<ScrollEndNotification>(
       onNotification: (notification) {
         final settledPage = _safePageValue(_pageController)?.round();
-        if (settledPage != null &&
-            settledPage != selectedIndex &&
-            settledPage >= 0 &&
-            settledPage < 4) {
+        final isValidSettledPage =
+            settledPage != null && settledPage >= 0 && settledPage < 4;
+        if (isValidSettledPage && settledPage != selectedIndex) {
           setState(() {
             selectedIndex = settledPage;
             _isNavigating = false;
           });
-          _resetInactiveScrolls();
         } else if (_isNavigating) {
           // Scroll sudah berhenti tapi flag lupa direset (mis. akibat
           // animateToPage yang diinterupsi) -- bersihkan agar swipe
           // manual berikutnya tidak terkunci oleh guard di onPageChanged.
           _isNavigating = false;
+        }
+        // WAJIB dipanggil TANPA syarat "settledPage != selectedIndex" di
+        // atas. Pada swipe manual, callback onPageChanged milik PageView
+        // (lihat di bawah) SUDAH meng-update selectedIndex lebih dulu --
+        // jauh sebelum ScrollEndNotification ini sempat terpicu -- karena
+        // onPageChanged jalan begitu progress swipe melewati setengah,
+        // sedangkan ScrollEndNotification baru muncul setelah animasi
+        // deselerasi benar-benar berhenti. Akibatnya saat notifikasi ini
+        // sampai, settledPage sudah SAMA dengan selectedIndex, sehingga
+        // kondisi di atas selalu false dan reset tidak pernah terpanggil
+        // untuk swipe -- hanya kepanggil untuk tap navbar (lewat
+        // _onItemTapped). Memanggilnya di sini tanpa syarat, setiap kali
+        // scroll benar-benar berhenti, memastikan tab manapun yang saat
+        // itu tidak aktif (dan karena itu sudah di luar layar) selalu
+        // direset ke atas -- baik user pindah tab lewat tap maupun swipe.
+        if (isValidSettledPage) {
+          _resetInactiveScrolls();
         }
         return false;
       },
