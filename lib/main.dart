@@ -2762,6 +2762,12 @@ class _MainShellState extends State<MainShell> {
   int selectedIndex = 0;
   late PageController _pageController;
   bool _isNavigating = false;
+  // Satu ScrollController per tab, dipakai untuk mereset posisi scroll tab
+  // yang baru saja ditinggalkan ke paling atas -- selalu dipanggil SETELAH
+  // tab tsb sepenuhnya di luar layar, jadi resetnya tidak pernah terlihat.
+  final Map<int, ScrollController> _tabScrollControllers = {
+    for (var i = 0; i < 4; i++) i: ScrollController(),
+  };
 
   // Menjamin posisi scroll FISIK PageView tetap sinkron dengan
   // `selectedIndex` (yang menentukan tab mana yang ter-highlight di
@@ -2775,6 +2781,19 @@ class _MainShellState extends State<MainShell> {
   // benar. Akibatnya konten yang tampil dan tab yang ter-highlight di
   // navbar jadi tidak sinkron. Dipanggil sebagai jaring pengaman terakhir
   // setiap panel ditutup, agar UI selalu "self-heal" ke state yang benar.
+  // Mengembalikan posisi scroll SEMUA tab yang TIDAK aktif ke paling atas.
+  // Hanya dipanggil setelah perpindahan tab BENAR-BENAR selesai (tab lama
+  // sudah sepenuhnya di luar layar, baik lewat tap navbar, swipe manual,
+  // atau jumpToTab), sehingga reset ini tidak pernah terlihat oleh user --
+  // tab tersebut nanti seolah baru pertama kali dibuka lagi.
+  void _resetInactiveScrolls() {
+    _tabScrollControllers.forEach((index, controller) {
+      if (index != selectedIndex && controller.hasClients) {
+        controller.jumpTo(0);
+      }
+    });
+  }
+
   void _resyncPageView() {
     if (!mounted) return;
     if (!_pageController.hasClients) return;
@@ -2805,6 +2824,9 @@ class _MainShellState extends State<MainShell> {
   @override
   void dispose() {
     _pageController.dispose();
+    for (final controller in _tabScrollControllers.values) {
+      controller.dispose();
+    }
     super.dispose();
   }
 
@@ -2823,6 +2845,7 @@ class _MainShellState extends State<MainShell> {
     );
     if (mounted) {
       setState(() => _isNavigating = false); // Buka kunci
+      _resetInactiveScrolls();
     }
   }
 
@@ -2841,6 +2864,7 @@ class _MainShellState extends State<MainShell> {
     if (_pageController.hasClients) {
       _pageController.jumpToPage(index);
     }
+    _resetInactiveScrolls();
   }
 
   @override
@@ -2856,6 +2880,7 @@ class _MainShellState extends State<MainShell> {
             appState: widget.appState,
             isActive: selectedIndex == 0,
             pageController: _pageController,
+            scrollController: _tabScrollControllers[0],
           ),
         ),
       ),
@@ -2865,7 +2890,10 @@ class _MainShellState extends State<MainShell> {
         child: _KeepAlivePage(
           tabIndex: 1,
           pageController: _pageController,
-          child: SchedulePage(appState: widget.appState),
+          child: SchedulePage(
+            appState: widget.appState,
+            scrollController: _tabScrollControllers[1],
+          ),
         ),
       ),
       _PageViewParallaxItem(
@@ -2874,7 +2902,10 @@ class _MainShellState extends State<MainShell> {
         child: _KeepAlivePage(
           tabIndex: 2,
           pageController: _pageController,
-          child: ProgressPage(appState: widget.appState),
+          child: ProgressPage(
+            appState: widget.appState,
+            scrollController: _tabScrollControllers[2],
+          ),
         ),
       ),
       _PageViewParallaxItem(
@@ -2883,7 +2914,10 @@ class _MainShellState extends State<MainShell> {
         child: _KeepAlivePage(
           tabIndex: 3,
           pageController: _pageController,
-          child: ProfilePage(appState: widget.appState),
+          child: ProfilePage(
+            appState: widget.appState,
+            scrollController: _tabScrollControllers[3],
+          ),
         ),
       ),
     ];
@@ -2909,6 +2943,7 @@ class _MainShellState extends State<MainShell> {
             selectedIndex = settledPage;
             _isNavigating = false;
           });
+          _resetInactiveScrolls();
         } else if (_isNavigating) {
           // Scroll sudah berhenti tapi flag lupa direset (mis. akibat
           // animateToPage yang diinterupsi) -- bersihkan agar swipe
@@ -3289,12 +3324,16 @@ class HomePage extends StatelessWidget {
     required this.appState,
     this.isActive = true,
     this.pageController,
+    this.scrollController,
     super.key,
   });
 
   final WorkoutAppState appState;
   final bool isActive;
   final PageController? pageController;
+  // Dipakai _MainShellState untuk mereset scroll tab ini ke atas secara
+  // diam-diam begitu user berpindah ke tab lain.
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -3305,6 +3344,7 @@ class HomePage extends StatelessWidget {
       top: false,
       bottom: false,
       child: ListView(
+        controller: scrollController,
         padding: const EdgeInsets.only(bottom: 120),
         children: [
           Padding(
@@ -4465,9 +4505,12 @@ class _EmptyInlineState extends StatelessWidget {
 }
 
 class SchedulePage extends StatelessWidget {
-  const SchedulePage({required this.appState, super.key});
+  const SchedulePage({required this.appState, this.scrollController, super.key});
 
   final WorkoutAppState appState;
+  // Dipakai _MainShellState untuk mereset scroll tab ini ke atas secara
+  // diam-diam begitu user berpindah ke tab lain.
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -4476,6 +4519,7 @@ class SchedulePage extends StatelessWidget {
       top: false,
       bottom: false,
       child: ListView(
+        controller: scrollController,
         // Menghapus padding horizontal ListView agar area swipe meluas sampai ke tepi layar
         padding: EdgeInsets.only(
           top: MediaQuery.of(context).padding.top + 32,
@@ -5869,9 +5913,12 @@ class _IconPickerSheetState extends State<_IconPickerSheet> {
 }
 
 class ProgressPage extends StatelessWidget {
-  const ProgressPage({required this.appState, super.key});
+  const ProgressPage({required this.appState, this.scrollController, super.key});
 
   final WorkoutAppState appState;
+  // Dipakai _MainShellState untuk mereset scroll tab ini ke atas secara
+  // diam-diam begitu user berpindah ke tab lain.
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -5880,6 +5927,7 @@ class ProgressPage extends StatelessWidget {
       top: false,
       bottom: false,
       child: ListView(
+        controller: scrollController,
         padding: EdgeInsets.fromLTRB(
           20,
           MediaQuery.of(context).padding.top + 32,
@@ -6354,9 +6402,12 @@ class _HistoryEmptyState extends StatelessWidget {
 }
 
 class ProfilePage extends StatelessWidget {
-  const ProfilePage({required this.appState, super.key});
+  const ProfilePage({required this.appState, this.scrollController, super.key});
 
   final WorkoutAppState appState;
+  // Dipakai _MainShellState untuk mereset scroll tab ini ke atas secara
+  // diam-diam begitu user berpindah ke tab lain.
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -6365,6 +6416,7 @@ class ProfilePage extends StatelessWidget {
       top: false,
       bottom: false,
       child: ListView(
+        controller: scrollController,
         padding: EdgeInsets.fromLTRB(
           20,
           MediaQuery.of(context).padding.top + 32,
