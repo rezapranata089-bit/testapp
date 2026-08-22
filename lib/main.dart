@@ -9,6 +9,7 @@ import 'package:flutter/scheduler.dart' hide Priority;
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:lottie/lottie.dart';
+import 'package:another_flutter_splash_screen/another_flutter_splash_screen.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:flutter/foundation.dart'; // Tambahkan ini untuk cek kIsWeb
 import 'package:sqflite/sqflite.dart';
@@ -2627,17 +2628,7 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
               ),
             );
           },
-          home: appState.isLoading
-              ? const SplashScreen()
-              : AnimatedBuilder(
-                  animation: appState,
-                  builder: (context, _) {
-                    return MainShell(
-                      key: mainShellKey,
-                      appState: appState,
-                    );
-                  },
-                ),
+          home: SplashScreen(appState: appState),
         );
       },
     );
@@ -2712,35 +2703,71 @@ class _WorkoutRumahAppState extends State<WorkoutRumahApp> {
 }
 
 class SplashScreen extends StatelessWidget {
-  const SplashScreen({super.key});
+  const SplashScreen({required this.appState, super.key});
+
+  final WorkoutAppState appState;
+
+  // Menunggu sampai WorkoutAppState benar-benar selesai load data (tema,
+  // profil, jadwal, riwayat) dari SharedPreferences/SQLite, dengan
+  // memanfaatkan loadingRevision yang sudah di-increment di akhir _load().
+  Future<void> _waitUntilLoaded() async {
+    if (!appState.isLoading) return;
+    final completer = Completer<void>();
+    void listener() {
+      if (!appState.isLoading) {
+        appState.loadingRevision.removeListener(listener);
+        if (!completer.isCompleted) completer.complete();
+      }
+    }
+
+    appState.loadingRevision.addListener(listener);
+    await completer.future;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.bolt_rounded,
-              size: 48,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Workout Rumah',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-            ),
-            const SizedBox(height: 20),
-            const SizedBox(
-              width: 100,
-              child: LinearProgressIndicator(),
-            ),
-          ],
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+    final backgroundColor =
+        isDark ? const Color(0xFF111310) : const Color(0xFFF4F3F0);
+
+    return FlutterSplashScreen(
+      duration: const Duration(milliseconds: 1200),
+      backgroundColor: backgroundColor,
+      splashScreenBody: Center(
+        child: SizedBox(
+          width: 220,
+          height: 220,
+          child: Lottie.asset(
+            'assets/lottie/gym.json',
+            repeat: true,
+          ),
         ),
       ),
+      // Navigasi ditunda sampai data selesai dimuat, lalu fade halus ke
+      // MainShell -- bukan sekadar delay durasi tetap.
+      asyncNavigationCallback: () async {
+        await _waitUntilLoaded();
+        if (context.mounted) {
+          Navigator.of(context).pushReplacement(
+            PageRouteBuilder(
+              pageBuilder: (context, animation, secondaryAnimation) =>
+                  AnimatedBuilder(
+                animation: appState,
+                builder: (context, _) => MainShell(
+                  key: mainShellKey,
+                  appState: appState,
+                ),
+              ),
+              transitionsBuilder:
+                  (context, animation, secondaryAnimation, child) {
+                return FadeTransition(opacity: animation, child: child);
+              },
+              transitionDuration: const Duration(milliseconds: 500),
+            ),
+          );
+        }
+      },
     );
   }
 }
