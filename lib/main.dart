@@ -2758,7 +2758,8 @@ class MainShell extends StatefulWidget {
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell>
+    with SingleTickerProviderStateMixin {
   int selectedIndex = 0;
   late PageController _pageController;
   bool _isNavigating = false;
@@ -2768,6 +2769,13 @@ class _MainShellState extends State<MainShell> {
   final Map<int, ScrollController> _tabScrollControllers = {
     for (var i = 0; i < 4; i++) i: ScrollController(),
   };
+  // Dipakai KHUSUS untuk lompatan ke tab yang TIDAK bersebelahan (mis. Home
+  // -> Progress/Profil): animasi fade ringan, bukan slide+parallax berat
+  // yang melewati semua tab di antaranya.
+  late final AnimationController _tabFadeController;
+  final ValueNotifier<double> _tabFadeOpacity = ValueNotifier(1.0);
+  bool _fadeMidpointHandled = false;
+  int? _pendingFadeIndex;
 
   // Menjamin posisi scroll FISIK PageView tetap sinkron dengan
   // `selectedIndex` (yang menentukan tab mana yang ter-highlight di
@@ -2819,6 +2827,27 @@ class _MainShellState extends State<MainShell> {
     super.initState();
     selectedIndex = widget.initialIndex;
     _pageController = PageController(initialPage: selectedIndex);
+    // Controller fade ringan khusus untuk lompatan ke tab yang TIDAK
+    // bersebelahan. Nilai controller (0..1) dipetakan manual di listener:
+    // 0->0.5 memudar ke opacity 0, 0.5->1 memudar kembali ke opacity 1.
+    // jumpToPage dipanggil tepat di titik opacity terendah (t=0.5) supaya
+    // perpindahan konten (yang instan, tanpa animasi geser) tidak terlihat.
+    _tabFadeController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 260),
+    )..addListener(_handleTabFadeTick);
+  }
+
+  void _handleTabFadeTick() {
+    final t = _tabFadeController.value;
+    final opacity = t <= 0.5 ? (1 - t * 2) : ((t - 0.5) * 2);
+    _tabFadeOpacity.value = opacity;
+    if (!_fadeMidpointHandled && t >= 0.5 && _pendingFadeIndex != null) {
+      _fadeMidpointHandled = true;
+      _pageController.jumpToPage(_pendingFadeIndex!);
+      setState(() => selectedIndex = _pendingFadeIndex!);
+      _pendingFadeIndex = null;
+    }
   }
 
   @override
@@ -2827,24 +2856,49 @@ class _MainShellState extends State<MainShell> {
     for (final controller in _tabScrollControllers.values) {
       controller.dispose();
     }
+    _tabFadeController.dispose();
+    _tabFadeOpacity.dispose();
     super.dispose();
   }
 
   Future<void> _onItemTapped(int index) async {
     if (selectedIndex == index) return;
-    setState(() {
-      selectedIndex = index;
-      _isNavigating = true; // Kunci onPageChanged sementara
-    });
-    await _pageController.animateToPage(
-      index,
-      // Menggunakan fastOutSlowIn: responsif di awal tapi melandai sangat
-      // smooth di akhir. Durasi diseimbangkan ke 500ms agar terasa pas.
-      duration: const Duration(milliseconds: 500),
-      curve: Curves.fastOutSlowIn,
-    );
+
+    final distance = (index - selectedIndex).abs();
+    if (distance <= 1) {
+      // Tab bersebelahan: tetap pakai animasi slide+parallax yang sudah
+      // ada, karena jaraknya cuma 1 halaman jadi tetap ringan dijalankan.
+      setState(() {
+        selectedIndex = index;
+        _isNavigating = true; // Kunci onPageChanged sementara
+      });
+      await _pageController.animateToPage(
+        index,
+        // Menggunakan fastOutSlowIn: responsif di awal tapi melandai sangat
+        // smooth di akhir. Durasi diseimbangkan ke 500ms agar terasa pas.
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.fastOutSlowIn,
+      );
+      if (mounted) {
+        setState(() => _isNavigating = false); // Buka kunci
+        _resetInactiveScrolls();
+      }
+      return;
+    }
+
+    // Tab TIDAK bersebelahan (mis. Home -> Progress/Profil): animateToPage
+    // akan menggeser PageView melewati semua tab di antaranya (ikut memicu
+    // parallax + rebuild tiap tab yang dilewati) -- berat untuk lompatan
+    // jauh. Sebagai gantinya pakai fade ringan: fade-out singkat, lalu
+    // jumpToPage (instan, tanpa animasi geser) tepat di titik opacity
+    // terendah sehingga lompatan kontennya tidak terlihat, baru fade-in.
+    setState(() => _isNavigating = true);
+    _pendingFadeIndex = index;
+    _fadeMidpointHandled = false;
+    await _tabFadeController.forward(from: 0);
+    _tabFadeController.value = 0;
     if (mounted) {
-      setState(() => _isNavigating = false); // Buka kunci
+      setState(() => _isNavigating = false);
       _resetInactiveScrolls();
     }
   }
@@ -2982,7 +3036,12 @@ class _MainShellState extends State<MainShell> {
 
     return Scaffold(
       extendBody: true, // Membentangkan halaman ke bawah navbar untuk mengisi celah sudut tumpul
-      body: tabPageView,
+      body: ValueListenableBuilder<double>(
+        valueListenable: _tabFadeOpacity,
+        builder: (context, opacity, child) =>
+            Opacity(opacity: opacity, child: child),
+        child: tabPageView,
+      ),
       bottomNavigationBar: _SlidingNavigationBar(
         selectedIndex: selectedIndex,
         onDestinationSelected: _onItemTapped,
