@@ -2965,10 +2965,17 @@ class _PageViewParallaxItem extends StatelessWidget {
          final distance = (page - index).clamp(-1.0, 1.0);
          final absDistance = distance.abs();
 
-         if (absDistance == 0.0) {
-           return prebuiltChild!;
-         }
-         
+         // Selalu bangun lewat Transform+Opacity (bukan early-return
+         // "return prebuiltChild!" seperti sebelumnya). Early-return itu
+         // membuat tipe widget di slot ini berubah (RepaintBoundary polos
+         // <-> Transform) begitu swipe mulai, sehingga Flutter meng-unmount
+         // lalu membuat ulang seluruh subtree (termasuk KeepAlivePage &
+         // ListView di dalamnya) -> scroll position tab ikut reset ke atas
+         // walau baru sedikit digeser, belum sepenuhnya pindah tab. Rumus
+         // di bawah sudah otomatis menghasilkan scale=1, translateX=0,
+         // opacity=1 saat absDistance=0, jadi hasil visualnya identik --
+         // hanya sekarang strukturnya stabil di semua frame.
+
          // Memakai kurva agar perubahan scale lebih terasa fluid.
         final easedDistance = Curves.easeOutQuad.transform(absDistance);
         
