@@ -201,6 +201,71 @@ class _StatCard extends StatelessWidget {
 
 enum _ActivityMetric { duration, calories, sessions }
 
+// Menurunkan gradasi warna untuk tiap metrik dari warna aksen yang sedang
+// dipakai user, dengan menggeser hue-nya sedikit -- supaya tiap metrik
+// terlihat beda tapi tetap terasa satu keluarga warna dengan tema aplikasi.
+List<Color> _metricGradient(Color base, _ActivityMetric metric) {
+  final hsl = HSLColor.fromColor(base);
+  double hueShift;
+  double lightBoost;
+  switch (metric) {
+    case _ActivityMetric.duration:
+      hueShift = 0;
+      lightBoost = 0.14;
+      break;
+    case _ActivityMetric.calories:
+      hueShift = 26; // geser ke arah oranye/hangat
+      lightBoost = 0.10;
+      break;
+    case _ActivityMetric.sessions:
+      hueShift = -30; // geser ke arah ungu/biru
+      lightBoost = 0.12;
+      break;
+  }
+  final shifted = hsl.withHue((hsl.hue + hueShift) % 360);
+  final start = shifted
+      .withSaturation((shifted.saturation + 0.08).clamp(0.0, 1.0))
+      .toColor();
+  final end = shifted
+      .withLightness((shifted.lightness + lightBoost).clamp(0.0, 0.9))
+      .withSaturation((shifted.saturation + 0.22).clamp(0.0, 1.0))
+      .toColor();
+  return [start, end];
+}
+
+// Tombol navigasi minggu (kiri/kanan) berbentuk lingkaran, meredup saat
+// dinonaktifkan (mis. panah kanan saat sudah di minggu berjalan).
+class _WeekNavButton extends StatelessWidget {
+  const _WeekNavButton({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final enabled = onTap != null;
+    return InkWell(
+      onTap: onTap,
+      customBorder: const CircleBorder(),
+      child: AnimatedOpacity(
+        duration: const Duration(milliseconds: 200),
+        opacity: enabled ? 1.0 : 0.35,
+        child: Container(
+          width: 36,
+          height: 36,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: theme.colorScheme.surface.withOpacity(0.6),
+          ),
+          child: Icon(icon, size: 20, color: theme.colorScheme.onSurface),
+        ),
+      ),
+    );
+  }
+}
+
 class _WeeklyActivityCard extends StatefulWidget {
   const _WeeklyActivityCard({required this.appState});
 
@@ -215,6 +280,8 @@ class _WeeklyActivityCardState extends State<_WeeklyActivityCard> {
   // (tidak bisa lihat minggu yang belum terjadi).
   int _weekOffset = 0;
   _ActivityMetric _metric = _ActivityMetric.duration;
+  // Arah slide animasi label minggu: 1 = maju (kanan), -1 = mundur (kiri).
+  double _slideDirection = -1.0;
 
   static const _dayLabels = ['S', 'S', 'R', 'K', 'J', 'S', 'M'];
   static const _dayNames = [
@@ -259,51 +326,100 @@ class _WeeklyActivityCardState extends State<_WeeklyActivityCard> {
     final startFmt =
         DateFormat(sameMonth ? 'd' : 'd MMM', 'id_ID').format(monday);
     final endFmt = DateFormat('d MMM', 'id_ID').format(sunday);
-    if (_weekOffset == 0) return 'Minggu ini • $startFmt–$endFmt';
     return '$startFmt–$endFmt';
+  }
+
+  String get _weekRelativeLabel {
+    final weeksAgo = -_weekOffset;
+    return '$weeksAgo minggu lalu';
+  }
+
+  void _changeWeek(int delta) {
+    setState(() {
+      _slideDirection = delta > 0 ? 1.0 : -1.0;
+      _weekOffset += delta;
+    });
+    HapticFeedback.selectionClick();
+  }
+
+  void _jumpToCurrentWeek() {
+    if (_weekOffset == 0) return;
+    setState(() {
+      _slideDirection = _weekOffset > 0 ? 1.0 : -1.0;
+      _weekOffset = 0;
+    });
+    HapticFeedback.mediumImpact();
   }
 
   void _showDayDetail(DateTime day, List<WorkoutHistory> items) {
     final theme = Theme.of(context);
+    final maxSheetHeight = MediaQuery.of(context).size.height * 0.72;
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
+      isScrollControlled: true,
       builder: (sheetContext) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(20, 6, 20, 30),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(day),
-                style:
-                    theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 16),
-              if (items.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text(
-                    'Tidak ada latihan di hari ini.',
-                    style: theme.textTheme.bodyMedium
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                )
-              else
-                ...items.map(
-                  (item) => Padding(
-                    padding: const EdgeInsets.only(bottom: 10),
-                    child: _HistoryTile(
-                      item: item,
-                      onTap: () {
-                        Navigator.pop(sheetContext);
-                        pushPanel(context, HistoryDetailPage(item: item));
-                      },
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxSheetHeight),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 6, 20, 30),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        DateFormat('EEEE, d MMMM yyyy', 'id_ID').format(day),
+                        style: theme.textTheme.titleLarge
+                            ?.copyWith(fontWeight: FontWeight.w900),
+                      ),
+                    ),
+                    if (items.isNotEmpty)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primaryContainer,
+                          borderRadius: BorderRadius.circular(100),
+                        ),
+                        child: Text(
+                          '${items.length} sesi',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            color: theme.colorScheme.onPrimaryContainer,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (items.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: Text(
+                      'Tidak ada latihan di hari ini.',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                  )
+                else
+                  ...items.map(
+                    (item) => Padding(
+                      padding: const EdgeInsets.only(bottom: 10),
+                      child: _HistoryTile(
+                        item: item,
+                        onTap: () {
+                          Navigator.pop(sheetContext);
+                          pushPanel(context, HistoryDetailPage(item: item));
+                        },
+                      ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -324,43 +440,79 @@ class _WeeklyActivityCardState extends State<_WeeklyActivityCard> {
     final todayIndex = days.indexWhere(
       (d) => d.year == today.year && d.month == today.month && d.day == today.day,
     );
+    final metricGradient = _metricGradient(theme.colorScheme.primary, _metric);
+    final mutedGradient =
+        metricGradient.map((c) => c.withOpacity(0.55)).toList();
+    final minEmptyBarHeight = chartMax * 0.045;
 
     return Card(
       child: Padding(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
         child: Column(
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: () => setState(() => _weekOffset -= 1),
-                  icon: const Icon(Icons.chevron_left_rounded),
-                  tooltip: 'Minggu sebelumnya',
-                ),
-                Expanded(
-                  child: Center(
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      child: Text(
-                        _weekRangeLabel,
-                        key: ValueKey(_weekOffset),
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.labelLarge
-                            ?.copyWith(fontWeight: FontWeight.w800),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.5),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                children: [
+                  _WeekNavButton(
+                    icon: Icons.chevron_left_rounded,
+                    onTap: () => _changeWeek(-1),
+                  ),
+                  Expanded(
+                    child: GestureDetector(
+                      behavior: HitTestBehavior.opaque,
+                      onTap: _weekOffset == 0 ? null : _jumpToCurrentWeek,
+                      child: ClipRect(
+                        child: AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 300),
+                          transitionBuilder: (child, animation) {
+                            final slide = Tween<Offset>(
+                              begin: Offset(_slideDirection * 0.4, 0),
+                              end: Offset.zero,
+                            ).animate(CurvedAnimation(
+                                parent: animation, curve: Curves.easeOutCubic));
+                            return SlideTransition(
+                              position: slide,
+                              child: FadeTransition(opacity: animation, child: child),
+                            );
+                          },
+                          child: Column(
+                            key: ValueKey(_weekOffset),
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                _weekOffset == 0 ? 'Minggu ini' : _weekRelativeLabel,
+                                style: theme.textTheme.labelMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: theme.colorScheme.primary,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                _weekRangeLabel,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                IconButton(
-                  onPressed:
-                      _weekOffset >= 0 ? null : () => setState(() => _weekOffset += 1),
-                  icon: const Icon(Icons.chevron_right_rounded),
-                  tooltip: 'Minggu berikutnya',
-                ),
-              ],
+                  _WeekNavButton(
+                    icon: Icons.chevron_right_rounded,
+                    onTap: _weekOffset >= 0 ? null : () => _changeWeek(1),
+                  ),
+                ],
+              ),
             ),
-            const SizedBox(height: 6),
+            const SizedBox(height: 14),
             Row(
               children: _ActivityMetric.values.map((metric) {
                 final selected = metric == _metric;
@@ -369,29 +521,65 @@ class _WeeklyActivityCardState extends State<_WeeklyActivityCard> {
                   _ActivityMetric.calories => 'Kalori',
                   _ActivityMetric.sessions => 'Sesi',
                 };
+                final metricIcon = switch (metric) {
+                  _ActivityMetric.duration => Icons.timer_rounded,
+                  _ActivityMetric.calories => Icons.local_fire_department_rounded,
+                  _ActivityMetric.sessions => Icons.bolt_rounded,
+                };
+                final chipGradient =
+                    _metricGradient(theme.colorScheme.primary, metric);
                 return Expanded(
                   child: Padding(
                     padding: const EdgeInsets.symmetric(horizontal: 3),
                     child: GestureDetector(
                       onTap: () => setState(() => _metric = metric),
                       child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        padding: const EdgeInsets.symmetric(vertical: 9),
                         decoration: BoxDecoration(
-                          color: selected
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.surfaceContainerHighest,
-                          borderRadius: BorderRadius.circular(12),
+                          gradient: selected
+                              ? LinearGradient(
+                                  begin: Alignment.topLeft,
+                                  end: Alignment.bottomRight,
+                                  colors: chipGradient,
+                                )
+                              : null,
+                          color:
+                              selected ? null : theme.colorScheme.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: selected
+                              ? [
+                                  BoxShadow(
+                                    color: chipGradient.last.withOpacity(0.35),
+                                    blurRadius: 10,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ]
+                              : null,
                         ),
                         alignment: Alignment.center,
-                        child: Text(
-                          label,
-                          style: theme.textTheme.labelMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: selected
-                                ? theme.colorScheme.onPrimary
-                                : theme.colorScheme.onSurfaceVariant,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              metricIcon,
+                              size: 15,
+                              color: selected
+                                  ? Colors.white
+                                  : theme.colorScheme.onSurfaceVariant,
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              label,
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: selected
+                                    ? Colors.white
+                                    : theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -400,116 +588,145 @@ class _WeeklyActivityCardState extends State<_WeeklyActivityCard> {
               }).toList(),
             ),
             const SizedBox(height: 18),
-            AnimatedSwitcher(
-              duration: const Duration(milliseconds: 350),
-              transitionBuilder: (child, animation) =>
-                  FadeTransition(opacity: animation, child: child),
-              child: SizedBox(
-                key: ValueKey('$_weekOffset-$_metric'),
-                height: 150,
-                child: BarChart(
-                  BarChartData(
-                    alignment: BarChartAlignment.spaceAround,
-                    maxY: chartMax,
-                    minY: 0,
-                    gridData: const FlGridData(show: false),
-                    borderData: FlBorderData(show: false),
-                    barTouchData: BarTouchData(
-                      enabled: true,
-                      touchTooltipData: BarTouchTooltipData(
-                        getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                          final suffix = switch (_metric) {
-                            _ActivityMetric.duration => ' menit',
-                            _ActivityMetric.calories => ' kcal',
-                            _ActivityMetric.sessions => ' sesi',
-                          };
-                          return BarTooltipItem(
-                            '${_dayNames[groupIndex]}\n',
-                            const TextStyle(
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                              color: Colors.white,
-                            ),
-                            children: [
-                              TextSpan(
-                                text: '${rod.toY.round()}$suffix',
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 12,
-                                  color: Colors.white,
-                                ),
+            GestureDetector(
+              onHorizontalDragEnd: (details) {
+                final velocity = details.primaryVelocity ?? 0;
+                if (velocity < -250 && _weekOffset < 0) {
+                  _changeWeek(1);
+                } else if (velocity > 250) {
+                  _changeWeek(-1);
+                }
+              },
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                transitionBuilder: (child, animation) {
+                  final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+                  final slide = Tween<Offset>(
+                    begin: const Offset(0, 0.06),
+                    end: Offset.zero,
+                  ).animate(CurvedAnimation(parent: animation, curve: Curves.easeOutCubic));
+                  return FadeTransition(
+                    opacity: fade,
+                    child: SlideTransition(position: slide, child: child),
+                  );
+                },
+                child: SizedBox(
+                  key: ValueKey('$_weekOffset-$_metric'),
+                  height: 150,
+                  child: BarChart(
+                    BarChartData(
+                      alignment: BarChartAlignment.spaceAround,
+                      maxY: chartMax,
+                      minY: 0,
+                      gridData: const FlGridData(show: false),
+                      borderData: FlBorderData(show: false),
+                      barTouchData: BarTouchData(
+                        enabled: true,
+                        touchTooltipData: BarTouchTooltipData(
+                          getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                            final suffix = switch (_metric) {
+                              _ActivityMetric.duration => ' menit',
+                              _ActivityMetric.calories => ' kcal',
+                              _ActivityMetric.sessions => ' sesi',
+                            };
+                            final hasValue = values[groupIndex] > 0;
+                            return BarTooltipItem(
+                              '${_dayNames[groupIndex]}\n',
+                              const TextStyle(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 12,
+                                color: Colors.white,
                               ),
-                            ],
-                          );
-                        },
-                      ),
-                      touchCallback: (event, response) {
-                        if (event is FlTapUpEvent &&
-                            response != null &&
-                            response.spot != null) {
-                          final dayIndex = response.spot!.touchedBarGroupIndex;
-                          if (dayIndex >= 0 && dayIndex < days.length) {
-                            _showDayDetail(days[dayIndex], dayHistories[dayIndex]);
-                          }
-                        }
-                      },
-                    ),
-                    titlesData: FlTitlesData(
-                      show: true,
-                      leftTitles:
-                          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      topTitles:
-                          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      rightTitles:
-                          const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                      bottomTitles: AxisTitles(
-                        sideTitles: SideTitles(
-                          showTitles: true,
-                          reservedSize: 28,
-                          getTitlesWidget: (value, meta) {
-                            final index = value.toInt();
-                            if (index < 0 || index >= _dayLabels.length) {
-                              return const SizedBox.shrink();
-                            }
-                            final isToday = index == todayIndex;
-                            return Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                _dayLabels[index],
-                                style: theme.textTheme.labelSmall?.copyWith(
-                                  color: isToday
-                                      ? theme.colorScheme.primary
-                                      : theme.colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w800,
+                              children: [
+                                TextSpan(
+                                  text: hasValue
+                                      ? '${rod.toY.round()}$suffix'
+                                      : 'Tidak ada latihan',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                  ),
                                 ),
-                              ),
+                              ],
                             );
                           },
                         ),
+                        touchCallback: (event, response) {
+                          if (event is FlTapUpEvent &&
+                              response != null &&
+                              response.spot != null) {
+                            final dayIndex = response.spot!.touchedBarGroupIndex;
+                            if (dayIndex >= 0 && dayIndex < days.length) {
+                              _showDayDetail(days[dayIndex], dayHistories[dayIndex]);
+                            }
+                          }
+                        },
                       ),
-                    ),
-                    barGroups: values.asMap().entries.map((entry) {
-                      final hasValue = entry.value > 0;
-                      final isToday = entry.key == todayIndex;
-                      final barColor = hasValue
-                          ? (isToday
-                              ? theme.colorScheme.primary
-                              : theme.colorScheme.primary.withOpacity(0.75))
-                          : theme.colorScheme.primaryContainer;
-                      return BarChartGroupData(
-                        x: entry.key,
-                        barRods: [
-                          BarChartRodData(
-                            toY: entry.value,
-                            color: barColor,
-                            width: 24,
-                            borderRadius: BorderRadius.circular(10),
+                      titlesData: FlTitlesData(
+                        show: true,
+                        leftTitles:
+                            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        topTitles:
+                            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        rightTitles:
+                            const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                        bottomTitles: AxisTitles(
+                          sideTitles: SideTitles(
+                            showTitles: true,
+                            reservedSize: 28,
+                            getTitlesWidget: (value, meta) {
+                              final index = value.toInt();
+                              if (index < 0 || index >= _dayLabels.length) {
+                                return const SizedBox.shrink();
+                              }
+                              final isToday = index == todayIndex;
+                              return Padding(
+                                padding: const EdgeInsets.only(top: 8),
+                                child: Text(
+                                  _dayLabels[index],
+                                  style: theme.textTheme.labelSmall?.copyWith(
+                                    color: isToday
+                                        ? theme.colorScheme.primary
+                                        : theme.colorScheme.onSurfaceVariant,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                              );
+                            },
                           ),
-                        ],
-                      );
-                    }).toList(),
+                        ),
+                      ),
+                      barGroups: values.asMap().entries.map((entry) {
+                        final hasValue = entry.value > 0;
+                        final isToday = entry.key == todayIndex;
+                        return BarChartGroupData(
+                          x: entry.key,
+                          barRods: [
+                            BarChartRodData(
+                              toY: hasValue ? entry.value : minEmptyBarHeight,
+                              width: 24,
+                              borderRadius:
+                                  BorderRadius.circular(hasValue ? 10 : 20),
+                              gradient: hasValue
+                                  ? LinearGradient(
+                                      begin: Alignment.bottomCenter,
+                                      end: Alignment.topCenter,
+                                      colors:
+                                          isToday ? metricGradient : mutedGradient,
+                                    )
+                                  : null,
+                              color: hasValue
+                                  ? null
+                                  : theme.colorScheme.outlineVariant
+                                      .withOpacity(0.3),
+                            ),
+                          ],
+                        );
+                      }).toList(),
+                    ),
+                    duration: const Duration(milliseconds: 450),
                   ),
-                  duration: const Duration(milliseconds: 450),
                 ),
               ),
             ),
